@@ -2,6 +2,8 @@ package com.csri.kg.client;
 
 import java.time.Duration;
 import java.time.Instant;
+import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.Collections;
 import java.util.List;
 import java.util.Optional;
@@ -18,6 +20,8 @@ import org.slf4j.LoggerFactory;
 import org.slf4j.MDC;
 
 import com.csri.kg.proto.*;
+import com.csri.kg.proto.GraphServiceGrpc;
+import com.csri.kg.proto.HealthServiceGrpc;
 
 import io.grpc.ConnectivityState;
 import io.grpc.ManagedChannel;
@@ -107,9 +111,9 @@ public class CsriKgClient implements AutoCloseable {
     private final Duration timeout;
     private final int maxRetries;
 
-    /** gRPC service stubs - TODO: Enable when gRPC stubs are generated */
-    // private final GraphServiceGrpc.GraphServiceBlockingStub graphStub;
-    // private final HealthServiceGrpc.HealthServiceBlockingStub healthStub;
+    /** gRPC service stubs */
+    private final GraphServiceGrpc.GraphServiceBlockingStub graphStub;
+    private final HealthServiceGrpc.HealthServiceBlockingStub healthStub;
 
     /** Circuit breaker state management */
     private final AtomicLong failureCount = new AtomicLong(0);
@@ -119,7 +123,9 @@ public class CsriKgClient implements AutoCloseable {
     /** Performance metrics */
     private final AtomicLong totalOperations = new AtomicLong(0);
     private final AtomicLong successfulOperations = new AtomicLong(0);
+    private final AtomicLong failedOperations = new AtomicLong(0);
     private final AtomicLong totalResponseTime = new AtomicLong(0);
+    private final AtomicLong totalProcessingTime = new AtomicLong(0);
 
     /** Client state management */
     private final AtomicBoolean isShutdown = new AtomicBoolean(false);
@@ -168,11 +174,11 @@ public class CsriKgClient implements AutoCloseable {
                 .userAgent("CsriKgClient/" + getClass().getPackage().getImplementationVersion())
                 .build();
 
-        // TODO: Initialize gRPC stubs when generated
-        // this.graphStub = GraphServiceGrpc.newBlockingStub(channel)
-        //     .withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS);
-        // this.healthStub = HealthServiceGrpc.newBlockingStub(channel)
-        //     .withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        // Initialize gRPC stubs
+        this.graphStub = GraphServiceGrpc.newBlockingStub(channel)
+            .withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS);
+        this.healthStub = HealthServiceGrpc.newBlockingStub(channel)
+            .withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS);
 
         // Set up logging context
         MDC.put("clientId", clientId);
@@ -531,18 +537,25 @@ public class CsriKgClient implements AutoCloseable {
 
         // Execute with retry and error handling
         return executeWithRetry("assertFacts", () -> {
-            // TODO: Implement when gRPC stubs are available
-            // AssertRequest request = AssertRequest.newBuilder()
-            //         .addAllAssertions(assertions)
-            //         .setValidateShacl(validate)
-            //         .build();
-            //
-            // return graphStub.withDeadlineAfter(timeout.toMillis(), TimeUnit.MILLISECONDS)
-            //         .assert_(request);
+            // Create the gRPC request
+            AssertRequest.Builder requestBuilder = AssertRequest.newBuilder();
+            requestBuilder.addAllAssertions(assertions);
+            // Note: validation option not available in current protobuf schema
+            AssertRequest request = requestBuilder.build();
 
-            // Temporary implementation for testing
-            throw new UnsupportedOperationException(
-                "gRPC stubs not yet generated - assertFacts method not fully implemented");
+            // Make the gRPC call
+            AssertResponse response = graphStub.assert_(request);
+
+            // Record metrics
+            if (response.getSuccess()) {
+                successfulOperations.incrementAndGet();
+                logger.info("Successfully asserted {} facts", response.getProcessedCount());
+            } else {
+                failedOperations.incrementAndGet();
+                logger.warn("Failed to assert facts: {}", String.join(", ", response.getErrorsList()));
+            }
+
+            return response;
         });
     }
 
@@ -591,18 +604,25 @@ public class CsriKgClient implements AutoCloseable {
         }
 
         boolean overallSuccess = successfulBatches > 0;
-        String message = String.format("Processed %d assertions in %d batches (%d successful)",
-                                      processedCount, (totalCount + MAX_BATCH_SIZE - 1) / MAX_BATCH_SIZE,
-                                      successfulBatches);
+        List<String> allErrors = new ArrayList<>();
 
         if (errorMessages.length() > 0) {
-            message += ". Errors: " + errorMessages.toString();
+            String errorString = errorMessages.toString().trim();
+            if (!errorString.isEmpty()) {
+                // Split on "; " and filter out empty strings
+                String[] errorArray = errorString.split("; ");
+                for (String error : errorArray) {
+                    if (!error.trim().isEmpty()) {
+                        allErrors.add(error.trim());
+                    }
+                }
+            }
         }
 
         return AssertResponse.newBuilder()
                 .setSuccess(overallSuccess)
-                .setMessage(message)
                 .setProcessedCount(processedCount)
+                .addAllErrors(allErrors)
                 .build();
     }
 
@@ -764,7 +784,7 @@ public class CsriKgClient implements AutoCloseable {
      * Create a client with default localhost connection.
      */
     public static CsriKgClient createLocal() {
-        return new CsriKgClient("localhost", 9090);
+        return new CsriKgClient("localhost", 9090, Duration.ofSeconds(30), 3);
     }
 
     /**

@@ -4,7 +4,7 @@ services:
   csneps-core:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.csneps
+      dockerfile: docker/Dockerfile.csneps-core
     container_name: csneps-core
     ports:
       - "3000:3000" # CSNePS GUI
@@ -14,22 +14,31 @@ services:
       - GRPC_PORT=50051
       - LOG_LEVEL=INFO
       - CSNEPS_KB_FILE=resources/sample-kb.edn
+      - JVM_XMX=2g
+      - JVM_XMS=512m
     volumes:
       - ../data:/app/data
       - ../src/csneps-core/resources:/app/resources
+      - ../logs:/app/logs
     networks:
       - csri-network
     healthcheck:
-      test: ["CMD", "curl", "-f", "http://localhost:3000/health"]
+      test: |
+        curl -f http://localhost:3000/health &&
+        curl -f http://localhost:3000/assert &&
+        curl -f http://localhost:3000/query &&
+        curl -f http://localhost:3000/why &&
+        grpc_health_probe -addr=localhost:50051
       interval: 30s
-      timeout: 10s
-      retries: 3
-      start_period: 60s
+      timeout: 15s
+      retries: 5
+      start_period: 90s
+    restart: unless-stopped
 
   python-bridge:
     build:
       context: ..
-      dockerfile: docker/Dockerfile.python
+      dockerfile: docker/Dockerfile.python-adapters
     container_name: python-bridge
     ports:
       - "8080:8080"
@@ -38,28 +47,129 @@ services:
       - CSNEPS_HOST=csneps-core
       - CSNEPS_PORT=50051
       - LOG_LEVEL=INFO
+      - PYTHONPATH=/app
     depends_on:
-      - csneps-core
+      csneps-core:
+        condition: service_healthy
     networks:
       - csri-network
     volumes:
       - ../data:/app/data
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
+    restart: unless-stopped
+
+  # GPU-accelerated perception service with ROCm/HIP support
+  perception-gpu:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.perception-rocm
+    container_name: perception-gpu
+    ports:
+      - "8081:8080"
+    environment:
+      - ROCM_VERSION=5.7.1
+      - PYTORCH_ROCM_ARCH=gfx1030;gfx1031;gfx1032;gfx1100;gfx1101;gfx1102
+      - HSA_OVERRIDE_GFX_VERSION=11.0.0
+      - HIP_VISIBLE_DEVICES=0
+      - CSNEPS_HOST=csneps-core
+      - CSNEPS_PORT=50051
+      - LOG_LEVEL=INFO
+      - CUDA_VISIBLE_DEVICES=""
+      - AMD_LOG_LEVEL=2
+    devices:
+      - /dev/kfd:/dev/kfd
+      - /dev/dri:/dev/dri
+    group_add:
+      - video
+      - render
+    security_opt:
+      - seccomp:unconfined
+    volumes:
+      - ../data:/app/data
+      - ../models:/app/models
+      - ../logs:/app/logs
+      - /opt/rocm:/opt/rocm:ro
+    depends_on:
+      csneps-core:
+        condition: service_healthy
+    networks:
+      - csri-network
+    healthcheck:
+      test: |
+        curl -f http://localhost:8080/health &&
+        python3 -c "import torch; print('ROCm available:', torch.cuda.is_available())" &&
+        rocm-smi --showpid
+      interval: 45s
+      timeout: 20s
+      retries: 3
+      start_period: 120s
+    profiles:
+      - gpu
     restart: unless-stopped
 
   web-ui:
     build:
       context: ../src/webui
-      dockerfile: Dockerfile
+      dockerfile: Dockerfile.webui
     container_name: csri-web-ui
     ports:
       - "8090:8080"
     environment:
       - API_ENDPOINT=http://csneps-core:3000
       - GRPC_ENDPOINT=csneps-core:50051
+      - NODE_ENV=production
     depends_on:
-      - csneps-core
+      csneps-core:
+        condition: service_healthy
+      python-bridge:
+        condition: service_healthy
     networks:
       - csri-network
+    volumes:
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    restart: unless-stopped
+
+  # CSNePS Knowledge Graph Service (Java-based)
+  csri-kg-service:
+    build:
+      context: ..
+      dockerfile: docker/Dockerfile.csri-kg-service
+    container_name: csri-kg-service
+    ports:
+      - "50052:50052"
+    environment:
+      - GRPC_PORT=50052
+      - CSNEPS_HOST=csneps-core
+      - CSNEPS_PORT=50051
+      - LOG_LEVEL=INFO
+      - JVM_XMX=1g
+      - JVM_XMS=256m
+    depends_on:
+      csneps-core:
+        condition: service_healthy
+    networks:
+      - csri-network
+    volumes:
+      - ../data:/app/data
+      - ../logs:/app/logs
+    healthcheck:
+      test: ["CMD", "grpc_health_probe", "-addr=localhost:50052"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 45s
     restart: unless-stopped
 
   # Development services
@@ -133,7 +243,22 @@ volumes:
   prometheus_data:
   grafana_data:
 # Usage examples:
-# Start core services:        docker-compose up
-# Start with development:     docker-compose --profile dev up
-# Start with monitoring:      docker-compose --profile monitoring up
-# Start everything:           docker-compose --profile dev --profile monitoring --profile persistence up
+# Start core services:              docker-compose up
+# Start with development tools:     docker-compose --profile dev up
+# Start with GPU acceleration:      docker-compose --profile gpu up
+# Start with monitoring:            docker-compose --profile monitoring up
+# Start with persistence:           docker-compose --profile persistence up
+# Start everything:                 docker-compose --profile dev --profile gpu --profile monitoring --profile persistence up
+#
+# Health check endpoints:
+# - CSNePS Core: http://localhost:3000/health, /assert, /query, /why
+# - Python Bridge: http://localhost:8080/health
+# - GPU Perception: http://localhost:8081/health
+# - Web UI: http://localhost:8090/health
+# - Java KG Service: grpc://localhost:50052 (health probe)
+#
+# GPU Requirements:
+# - AMD GPU with ROCm 5.7.1+ support
+# - Docker with device access: /dev/kfd, /dev/dri
+# - User in video and render groups
+# - ROCm drivers installed on host
