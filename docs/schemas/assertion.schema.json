@@ -1,0 +1,24 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.org/schemas/assertion.schema.json",
+  "title": "Assertion",
+  "type": "object",
+  "required": ["subject", "predicate", "object"],
+  "properties": {
+    "subject": { "type": "string", "minLength": 1 },
+    "predicate": { "type": "string", "minLength": 1 },
+    "object": { "type": "string", "minLength": 1 },
+    "confidence": { "type": "number", "minimum": 0.0, "maximum": 1.0 },
+    "provenance": {
+      "type": "object",
+      "properties": {
+        "docId": { "type": "string" },
+        "startOffset": { "type": "integer", "minimum": 0 },
+        "endOffset": { "type": "integer", "minimum": 0 },
+        "extractor": { "type": "string" }
+      },
+      "additionalProperties": true
+    }
+  },
+  "additionalProperties": false
+}

@@ -1,0 +1,174 @@
+@prefix sh: <http://www.w3.org/ns/shacl#> .
+@prefix ex: <http://example.org/robotics#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+
+# ===== Entity Shape =====
+ex:EntityShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Entity ;
+    sh:property [
+        sh:path ex:hasId ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:name "Entity ID" ;
+        sh:description "Every entity must have exactly one non-empty ID" ;
+    ] ;
+    sh:property [
+        sh:path ex:hasName ;
+        sh:datatype xsd:string ;
+        sh:maxCount 1 ;
+        sh:name "Entity name" ;
+        sh:description "Entity may have at most one name" ;
+    ] .
+
+# ===== Robot Shape =====
+ex:RobotShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Robot ;
+    sh:property [
+        sh:path ex:hasLocation ;
+        sh:class ex:Location ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "Robot location" ;
+        sh:description "Robot must have exactly one current location" ;
+    ] ;
+    sh:property [
+        sh:path ex:navigatesTo ;
+        sh:class ex:Location ;
+        sh:name "Navigation target" ;
+        sh:description "Robot may navigate to multiple locations" ;
+    ] .
+
+# ===== Location Shape =====
+ex:LocationShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Location ;
+    sh:property [
+        sh:path ex:hasCoordinates ;
+        sh:datatype xsd:string ;
+        sh:pattern "^-?\\d+(\\.\\d+)?,-?\\d+(\\.\\d+)?$" ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "Location coordinates" ;
+        sh:description "Location must have coordinates in format 'x,y' (decimal numbers)" ;
+        sh:message "Coordinates must be in format 'x,y' where x and y are decimal numbers (e.g., '10.5,-20.3')" ;
+    ] ;
+    sh:property [
+        sh:path ex:inArea ;
+        sh:class ex:Area ;
+        sh:maxCount 1 ;
+        sh:name "Location area" ;
+        sh:description "Location may belong to at most one area" ;
+    ] .
+
+# ===== Area Shape =====
+ex:AreaShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Area ;
+    sh:property [
+        sh:path ex:hasName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:minLength 1 ;
+        sh:name "Area name" ;
+        sh:description "Area must have exactly one non-empty name" ;
+    ] .
+
+# ===== Landmark Shape =====
+ex:LandmarkShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Landmark ;
+    sh:property [
+        sh:path ex:hasName ;
+        sh:datatype xsd:string ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "Landmark name" ;
+        sh:description "Landmark must have exactly one name" ;
+    ] ;
+    sh:property [
+        sh:path ex:hasLocation ;
+        sh:class ex:Location ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "Landmark location" ;
+        sh:description "Landmark must have exactly one location" ;
+    ] .
+
+# ===== Belief Shape =====
+ex:BeliefShape
+    a sh:NodeShape ;
+    sh:targetClass ex:Belief ;
+    sh:property [
+        sh:path ex:hasConfidence ;
+        sh:datatype xsd:double ;
+        sh:minInclusive 0.0 ;
+        sh:maxInclusive 1.0 ;
+        sh:minCount 1 ;
+        sh:maxCount 1 ;
+        sh:name "Belief confidence" ;
+        sh:description "Belief must have exactly one confidence value between 0.0 and 1.0" ;
+        sh:message "Confidence value must be between 0.0 and 1.0" ;
+    ] .
+
+# ===== Spatial Entity Shape =====
+ex:SpatialEntityShape
+    a sh:NodeShape ;
+    sh:targetClass ex:SpatialEntity ;
+    sh:or (
+        [
+            sh:property [
+                sh:path ex:hasLocation ;
+                sh:class ex:Location ;
+                sh:minCount 1 ;
+            ]
+        ]
+        [
+            sh:property [
+                sh:path ex:hasCoordinates ;
+                sh:datatype xsd:string ;
+                sh:minCount 1 ;
+            ]
+        ]
+    ) ;
+    sh:name "Spatial entity constraint" ;
+    sh:description "Spatial entity must either have a location or coordinates" .
+
+# ===== Proximity Constraint =====
+ex:ProximityConstraint
+    a sh:NodeShape ;
+    sh:targetNode ex:Robot ;
+    sh:sparql [
+        sh:select """
+            SELECT $this ?nearby WHERE {
+                $this ex:isNearby ?nearby .
+                $this ex:hasLocation ?loc1 .
+                ?nearby ex:hasLocation ?loc2 .
+                ?loc1 ex:hasCoordinates ?coords1 .
+                ?loc2 ex:hasCoordinates ?coords2 .
+                FILTER(?coords1 = ?coords2)
+            }
+        """ ;
+        sh:message "Entities marked as nearby should not be at the exact same coordinates" ;
+    ] .
+
+# ===== Navigation Consistency =====
+ex:NavigationConsistency
+    a sh:NodeShape ;
+    sh:targetClass ex:Robot ;
+    sh:sparql [
+        sh:select """
+            SELECT $this ?target WHERE {
+                $this ex:navigatesTo ?target .
+                $this ex:hasLocation ?current .
+                FILTER(?current = ?target)
+            }
+        """ ;
+        sh:message "Robot cannot navigate to its current location" ;
+    ] .

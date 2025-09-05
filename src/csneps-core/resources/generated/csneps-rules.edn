@@ -1,0 +1,31 @@
+;; Example EDN for frames, roles, and rules produced by OWL→CSNePS mapper.
+;; You can expand this with more constructs as needed.
+
+{:frames
+ #{:Entity :Robot :Area :HighConfidenceLandmark}
+
+ :roles
+ #{:operatesIn :locatedAt :supports :contradicts}
+
+ :rules
+ [;; Subclass: Robot ⊑ Entity
+  {:name :subclass-robot-entity
+   :if   ['(Robot ?x)]
+   :then ['(Entity ?x)]}
+
+  ;; Domain/Range typing for operatesIn
+  {:name :domain-operatesIn
+   :if   ['(operatesIn ?s ?o)]
+   :then ['(Robot ?s)]}
+
+  {:name :range-operatesIn
+   :if   ['(operatesIn ?s ?o)]
+   :then ['(Area ?o)]}
+
+  ;; Example: promote landmark given supporting observations
+  {:name :promote-landmark
+   :if   ['(LoopClosure ?l ?s1 ?m)
+          '(AppearanceMatch ?l :consistent ?s2)
+          '(> ?s1 0.7)
+          '(> ?s2 0.7)]
+   :then ['(HighConfidenceLandmark ?l)]}]}
