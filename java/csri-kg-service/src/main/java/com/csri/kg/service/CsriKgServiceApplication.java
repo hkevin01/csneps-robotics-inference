@@ -4,9 +4,9 @@ import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.ConfigurableApplicationContext;
 
-import main.java.com.csri.kg.service.core.CsnepsIntegrationServiceSimple;
-import main.java.com.csri.kg.service.grpc.GrpcServerSimple;
-import main.java.com.csri.kg.service.web.GraphController;
+import com.csri.kg.service.core.CsnepsIntegrationServiceSimple;
+import com.csri.kg.service.grpc.GrpcServerSimple;
+import com.csri.kg.service.web.GraphController;
 
 /**
  * CSRI Knowledge Graph Service - Java microservice for CSNePS integration.

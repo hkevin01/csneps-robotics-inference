@@ -2,13 +2,10 @@ package com.csri.kg.client.examples;
 
 import java.util.Arrays;
 
-import javax.management.Query;
-
 import com.csri.kg.proto.GraphProto.*;
 
-import main.java.com.csri.kg.client.CsriKgClient;
-import main.java.com.csri.kg.client.CsriKgClientBuilder;
-import main.java.com.csri.kg.service.core.CsnepsIntegrationService.QueryResult;
+import com.csri.kg.client.CsriKgClient;
+import com.csri.kg.client.CsriKgClientBuilder;
 
 /**
  * Example usage of the CSNePS Knowledge Graph client.

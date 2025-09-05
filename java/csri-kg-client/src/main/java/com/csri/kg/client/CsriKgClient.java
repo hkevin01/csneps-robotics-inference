@@ -3,13 +3,10 @@ package com.csri.kg.client;
 import java.util.List;
 import java.util.concurrent.TimeUnit;
 
-import javax.management.Query;
-
+import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import com.csri.kg.proto.GraphProto.*;
-import com.csri.kg.proto.GraphServiceGrpc;
-import com.csri.kg.proto.HealthServiceGrpc;
+import com.csri.kg.proto.*;
 
 import io.grpc.ManagedChannel;
 import io.grpc.ManagedChannelBuilder;
@@ -50,12 +47,12 @@ public class CsriKgClient implements AutoCloseable {
         try {
             AssertRequest request = AssertRequest.newBuilder()
                     .addAllAssertions(assertions)
-                    .setValidate(validate)
+                    .setValidateShacl(validate)
                     .build();
 
-            AssertResponse response = graphStub.assertRequest(request);
+            AssertResponse response = graphStub.assert_(request);
             logger.debug("Asserted {} facts, {} processed",
-                        assertions.size(), response.getProcessedCount());
+                        assertions.size(), response.getAssertionsAccepted());
             return response;
 
         } catch (StatusRuntimeException e) {
@@ -67,10 +64,10 @@ public class CsriKgClient implements AutoCloseable {
     /**
      * Query the knowledge base.
      */
-    public QueryResponse query(Query query) {
+    public QueryResponse query(String pattern) {
         try {
             QueryRequest request = QueryRequest.newBuilder()
-                    .setQuery(query)
+                    .setPattern(pattern)
                     .build();
 
             QueryResponse response = graphStub.query(request);
@@ -114,30 +111,28 @@ public class CsriKgClient implements AutoCloseable {
     /**
      * Search the knowledge base.
      */
-    public SearchResponse search(SearchCriteria criteria) {
-        return search(criteria, 100, 0);
-    }
-
-    /**
-     * Search the knowledge base with pagination.
-     */
-    public SearchResponse search(SearchCriteria criteria, int limit, int offset) {
+    public SearchResponse search(SearchRequest searchRequest) {
         try {
-            SearchRequest request = SearchRequest.newBuilder()
-                    .setCriteria(criteria)
-                    .setLimit(limit)
-                    .setOffset(offset)
-                    .build();
-
-            SearchResponse response = graphStub.search(request);
-            logger.debug("Search returned {} of {} total results",
-                        response.getResultsCount(), response.getTotalCount());
+            SearchResponse response = graphStub.search(searchRequest);
+            logger.debug("Search returned {} results", response.getResultsCount());
             return response;
 
         } catch (StatusRuntimeException e) {
             logger.error("Failed to execute search: {}", e.getMessage());
             throw new CsriKgClientException("Search failed", e);
         }
+    }
+
+    /**
+     * Search the knowledge base with simple text query.
+     */
+    public SearchResponse search(String queryText, int limit) {
+        SearchRequest request = SearchRequest.newBuilder()
+                .setQueryText(queryText)
+                .setLimit(limit)
+                .setFuzzyMatch(false)
+                .build();
+        return search(request);
     }
 
     /**
