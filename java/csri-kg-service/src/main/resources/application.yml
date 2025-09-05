@@ -13,7 +13,7 @@ management:
 csneps:
   host: localhost
   port: 50051     # CSNePS gRPC server port
-  
+
 grpc:
   port: 50061
 

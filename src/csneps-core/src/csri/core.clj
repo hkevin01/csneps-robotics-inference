@@ -134,7 +134,7 @@
   (try
     (let [conclusion (:conclusion rule-def)]
       ;; For now, just check if the observation type is relevant
-      (some #(= (first %) (first conclusion)) facts))
+      (boolean (some #(= (first %) (first conclusion)) facts)))
     (catch Exception e
       false)))
 
@@ -151,10 +151,10 @@
       (log/info "Running inference for observation:" observation-id)
 
       ;; Return rule names that could have been triggered
-      (filter some?
-              (for [[rule-name rule-def] rules]
-                (when (rule-matches? rule-def facts observation-id)
-                  (name rule-name)))))
+      (vec (filter some?
+                   (for [[rule-name rule-def] rules]
+                     (when (rule-matches? rule-def facts observation-id)
+                       (name rule-name))))))
 
     (catch Exception e
       (log/warn e "Inference failed")
@@ -326,34 +326,7 @@
        :observation_id nil
        :triggered_rules []})))
 
-;; === Query Processing ===
-
-(defn query-beliefs
-  "Query CSNePS for beliefs matching criteria"
-  [query]
-  (log/info "Querying beliefs:" query)
-
-  (try
-    (let [concept (:concept query)
-          limit (:limit query 10)
-          include-justification (:include_justification query false)]
-
-      ;; Query based on concept type
-      (let [beliefs (case concept
-                      "HighConfidenceLandmark" (query-landmarks)
-                      "Hypothesis" (query-hypotheses)
-                      "Recommendation" (query-recommendations)
-                      [])]
-
-        {:beliefs (take limit beliefs)
-         :success true
-         :message "Query executed successfully"}))
-
-    (catch Exception e
-      (log/error e "Failed to query beliefs")
-      {:beliefs []
-       :success false
-       :message (str "Error: " (.getMessage e))})))
+;; === Query Helper Functions ===
 
 (defn query-landmarks []
   "Query for high confidence landmarks"
@@ -363,13 +336,13 @@
           facts (:facts kb)
           landmarks (filter #(= (first %) :HighConfidenceLandmark) facts)]
 
-      (map (fn [landmark-fact]
-             {:belief_id (str "landmark-" (hash landmark-fact))
-              :belief_type "HighConfidenceLandmark"
-              :content (json/write-str {:landmark_id (second landmark-fact) :confidence 0.85})
-              :confidence 0.85
-              :created_at (str (Instant/now))})
-           (take 5 landmarks)))
+      (vec (map (fn [landmark-fact]
+                  {:belief_id (str "landmark-" (hash landmark-fact))
+                   :belief_type "HighConfidenceLandmark"
+                   :content (json/write-str {:landmark_id (second landmark-fact) :confidence 0.85})
+                   :confidence 0.85
+                   :created_at (str (Instant/now))})
+                (take 5 landmarks))))
 
     (catch Exception e
       (log/warn e "Landmark query failed")
@@ -400,6 +373,35 @@
     (catch Exception e
       (log/warn e "Recommendation query failed")
       [])))
+
+;; === Query Processing ===
+
+(defn query-beliefs
+  "Query CSNePS for beliefs matching criteria"
+  [query]
+  (log/info "Querying beliefs:" query)
+
+  (try
+    (let [concept (:concept query)
+          limit (:limit query 10)
+          include-justification (:include_justification query false)]
+
+      ;; Query based on concept type
+      (let [beliefs (case concept
+                      "HighConfidenceLandmark" (query-landmarks)
+                      "Hypothesis" (query-hypotheses)
+                      "Recommendation" (query-recommendations)
+                      [])]
+
+        {:beliefs (vec (take limit beliefs))
+         :success true
+         :message "Query executed successfully"}))
+
+    (catch Exception e
+      (log/error e "Failed to query beliefs")
+      {:beliefs []
+       :success false
+       :message (str "Error: " (.getMessage e))})))
 
 (defn get-justification
   "Get justification tree for a belief"
@@ -546,4 +548,4 @@
 
       (do
         (log/error "Failed to start system")
-        (System/exit 1))))))
+        (System/exit 1)))))

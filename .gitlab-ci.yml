@@ -1,0 +1,438 @@
+# GitLab CI/CD Pipeline for CSNePS Robotics Inference Platform
+# Comprehensive build, test, and deployment pipeline
+
+stages:
+  - validate
+  - build
+  - test
+  - security
+  - package
+  - deploy
+
+variables:
+  # Java configuration
+  MAVEN_OPTS: "-Dmaven.repo.local=$CI_PROJECT_DIR/.m2/repository"
+  MAVEN_CLI_OPTS: "--batch-mode --errors --fail-at-end --show-version"
+
+  # Python configuration
+  PIP_CACHE_DIR: "$CI_PROJECT_DIR/.pip-cache"
+  PYTHON_VERSION: "3.11"
+
+  # Docker configuration
+  DOCKER_DRIVER: overlay2
+  DOCKER_TLS_CERTDIR: "/certs"
+
+  # Security scanning
+  SECURE_LOG_LEVEL: "info"
+
+# Cache configuration for faster builds
+cache:
+  paths:
+    - .m2/repository/
+    - .pip-cache/
+    - .lein/
+    - node_modules/
+
+# ==================== VALIDATION STAGE ====================
+
+lint:clojure:
+  stage: validate
+  image: clojure:temurin-17-lein-alpine
+  script:
+    - cd src/csneps-core
+    - lein kibit
+    - lein eastwood
+  allow_failure: true
+  artifacts:
+    reports:
+      junit: src/csneps-core/target/test-reports/TEST-*.xml
+    expire_in: 1 week
+
+lint:python:
+  stage: validate
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install flake8 black pylint mypy
+  script:
+    - cd src/python-bridge
+    - flake8 . --max-line-length=88 --extend-ignore=E203,W503
+    - black --check .
+    - pylint **/*.py --exit-zero
+    - mypy . --ignore-missing-imports
+  allow_failure: true
+
+lint:java:
+  stage: validate
+  image: maven:3.9-openjdk-17
+  script:
+    - cd java/csri-kg-service
+    - mvn ${MAVEN_CLI_OPTS} checkstyle:check
+    - mvn ${MAVEN_CLI_OPTS} spotbugs:check
+  allow_failure: true
+  artifacts:
+    reports:
+      junit: java/*/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+
+validate:ontology:
+  stage: validate
+  image: eclipse/rdf4j-workbench:latest
+  script:
+    - cd ontology
+    - # Validate OWL ontologies
+    - for owl_file in owl/*.owl; do
+        echo "Validating $owl_file"
+        # Add OWL validation logic here
+      done
+    - # Validate SHACL shapes
+    - for shacl_file in shacl/*.ttl; do
+        echo "Validating $shacl_file"
+        # Add SHACL validation logic here
+      done
+  allow_failure: true
+
+# ==================== BUILD STAGE ====================
+
+build:clojure:
+  stage: build
+  image: clojure:temurin-17-lein-alpine
+  script:
+    - cd src/csneps-core
+    - lein deps
+    - lein compile
+    - lein uberjar
+  artifacts:
+    paths:
+      - src/csneps-core/target/uberjar/
+    expire_in: 1 day
+
+build:python:
+  stage: build
+  image: python:${PYTHON_VERSION}
+  before_script:
+    - pip install --upgrade pip
+    - pip install build wheel
+  script:
+    - cd src/python-bridge
+    - python -m build
+  artifacts:
+    paths:
+      - src/python-bridge/dist/
+    expire_in: 1 day
+
+build:java-service:
+  stage: build
+  image: maven:3.9-openjdk-17
+  script:
+    - cd java/csri-kg-service
+    - mvn ${MAVEN_CLI_OPTS} clean compile
+    - mvn ${MAVEN_CLI_OPTS} package -DskipTests
+  artifacts:
+    paths:
+      - java/csri-kg-service/target/*.jar
+    expire_in: 1 day
+
+build:java-client:
+  stage: build
+  image: maven:3.9-openjdk-17
+  script:
+    - cd java/csri-kg-client
+    - mvn ${MAVEN_CLI_OPTS} clean compile
+    - mvn ${MAVEN_CLI_OPTS} package -DskipTests
+  artifacts:
+    paths:
+      - java/csri-kg-client/target/*.jar
+    expire_in: 1 day
+
+build:owl-tools:
+  stage: build
+  image: maven:3.9-openjdk-17
+  script:
+    - cd java/csri-owl-tools
+    - mvn ${MAVEN_CLI_OPTS} clean compile
+    - mvn ${MAVEN_CLI_OPTS} package -DskipTests
+  artifacts:
+    paths:
+      - java/csri-owl-tools/target/*.jar
+    expire_in: 1 day
+
+# ==================== TEST STAGE ====================
+
+test:clojure:
+  stage: test
+  image: clojure:temurin-17-lein-alpine
+  dependencies:
+    - build:clojure
+  script:
+    - cd src/csneps-core
+    - lein test
+  artifacts:
+    reports:
+      junit: src/csneps-core/target/test-reports/TEST-*.xml
+    expire_in: 1 week
+  coverage: '/TOTAL.*?(\d+\.\d+)%/'
+
+test:python:
+  stage: test
+  image: python:${PYTHON_VERSION}
+  dependencies:
+    - build:python
+  before_script:
+    - cd src/python-bridge
+    - pip install -e .[test]
+    - pip install pytest pytest-cov pytest-asyncio
+  script:
+    - pytest --cov=csri_client --cov-report=xml --cov-report=term --junitxml=test-results.xml
+  artifacts:
+    reports:
+      junit: src/python-bridge/test-results.xml
+      coverage_report:
+        coverage_format: cobertura
+        path: src/python-bridge/coverage.xml
+    expire_in: 1 week
+  coverage: '/TOTAL.*\s+(\d+%)$/'
+
+test:java-service:
+  stage: test
+  image: maven:3.9-openjdk-17
+  dependencies:
+    - build:java-service
+  script:
+    - cd java/csri-kg-service
+    - mvn ${MAVEN_CLI_OPTS} test
+  artifacts:
+    reports:
+      junit: java/csri-kg-service/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+
+test:java-client:
+  stage: test
+  image: maven:3.9-openjdk-17
+  dependencies:
+    - build:java-client
+  script:
+    - cd java/csri-kg-client
+    - mvn ${MAVEN_CLI_OPTS} test
+  artifacts:
+    reports:
+      junit: java/csri-kg-client/target/surefire-reports/TEST-*.xml
+    expire_in: 1 week
+
+test:integration:
+  stage: test
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - build:clojure
+    - build:python
+    - build:java-service
+  script:
+    - docker network create csri-test-network
+    - # Start CSNePS service
+    - docker run -d --name csneps-service --network csri-test-network
+        -v $PWD/src/csneps-core/target/uberjar:/app
+        clojure:temurin-17-lein-alpine
+        java -jar /app/csneps-robotics-inference-*-standalone.jar
+    - # Start Java microservice
+    - docker run -d --name java-service --network csri-test-network
+        -v $PWD/java/csri-kg-service/target:/app
+        openjdk:17-jre-alpine
+        java -jar /app/csri-kg-service-*.jar
+    - # Run integration tests
+    - cd tests/integration
+    - docker run --rm --network csri-test-network
+        -v $PWD:/tests python:${PYTHON_VERSION}
+        sh -c "cd /tests && pip install -r requirements.txt && python -m pytest test_*.py -v"
+  after_script:
+    - docker stop csneps-service java-service || true
+    - docker rm csneps-service java-service || true
+    - docker network rm csri-test-network || true
+  allow_failure: true
+
+# ==================== SECURITY STAGE ====================
+
+security:dependency-scan:
+  stage: security
+  image: owasp/dependency-check:latest
+  script:
+    - /usr/share/dependency-check/bin/dependency-check.sh
+        --project "CSNePS Robotics Inference"
+        --scan .
+        --format ALL
+        --out ./dependency-check-report
+  artifacts:
+    reports:
+      dependency_scanning: dependency-check-report/dependency-check-report.json
+    paths:
+      - dependency-check-report/
+    expire_in: 1 week
+  allow_failure: true
+
+security:secrets-scan:
+  stage: security
+  image: trufflesecurity/trufflehog:latest
+  script:
+    - trufflehog filesystem . --only-verified --json > secrets-report.json
+  artifacts:
+    reports:
+      secret_detection: secrets-report.json
+    expire_in: 1 week
+  allow_failure: true
+
+security:license-scan:
+  stage: security
+  image: licensefinder/license_finder:latest
+  script:
+    - license_finder --decisions-file .license_decisions.yml
+  allow_failure: true
+
+# ==================== PACKAGE STAGE ====================
+
+package:docker-service:
+  stage: package
+  image: docker:latest
+  services:
+    - docker:dind
+  dependencies:
+    - build:java-service
+  script:
+    - cd java/csri-kg-service
+    - docker build -t $CI_REGISTRY_IMAGE/csri-kg-service:$CI_COMMIT_SHA .
+    - docker build -t $CI_REGISTRY_IMAGE/csri-kg-service:latest .
+    - docker login -u $CI_REGISTRY_USER -p $CI_REGISTRY_PASSWORD $CI_REGISTRY
+    - docker push $CI_REGISTRY_IMAGE/csri-kg-service:$CI_COMMIT_SHA
+    - docker push $CI_REGISTRY_IMAGE/csri-kg-service:latest
+  only:
+    - main
+    - develop
+
+package:helm-chart:
+  stage: package
+  image: alpine/helm:latest
+  script:
+    - cd deployment/helm
+    - helm package csri-platform --version $CI_COMMIT_SHA
+    - helm push csri-platform-$CI_COMMIT_SHA.tgz oci://$CI_REGISTRY_IMAGE/helm
+  artifacts:
+    paths:
+      - deployment/helm/*.tgz
+    expire_in: 1 week
+  only:
+    - main
+    - develop
+
+# ==================== DEPLOY STAGE ====================
+
+deploy:development:
+  stage: deploy
+  image: alpine/helm:latest
+  environment:
+    name: development
+    url: https://csri-dev.example.org
+  dependencies:
+    - package:docker-service
+    - package:helm-chart
+  script:
+    - helm upgrade --install csri-platform
+        deployment/helm/csri-platform
+        --namespace csri-dev
+        --create-namespace
+        --set image.tag=$CI_COMMIT_SHA
+        --set environment=development
+        --wait
+  only:
+    - develop
+
+deploy:staging:
+  stage: deploy
+  image: alpine/helm:latest
+  environment:
+    name: staging
+    url: https://csri-staging.example.org
+  dependencies:
+    - package:docker-service
+    - package:helm-chart
+  script:
+    - helm upgrade --install csri-platform
+        deployment/helm/csri-platform
+        --namespace csri-staging
+        --create-namespace
+        --set image.tag=$CI_COMMIT_SHA
+        --set environment=staging
+        --wait
+  when: manual
+  only:
+    - main
+
+deploy:production:
+  stage: deploy
+  image: alpine/helm:latest
+  environment:
+    name: production
+    url: https://csri.example.org
+  dependencies:
+    - package:docker-service
+    - package:helm-chart
+  script:
+    - helm upgrade --install csri-platform
+        deployment/helm/csri-platform
+        --namespace csri-prod
+        --create-namespace
+        --set image.tag=$CI_COMMIT_SHA
+        --set environment=production
+        --set replicaCount=3
+        --wait
+  when: manual
+  only:
+    - main
+  before_script:
+    - echo "Deploying to production - ensure all approvals are in place"
+
+# ==================== QUALITY GATES ====================
+
+quality:sonarqube:
+  stage: test
+  image: sonarsource/sonar-scanner-cli:latest
+  script:
+    - sonar-scanner
+        -Dsonar.projectKey=csneps-robotics-inference
+        -Dsonar.sources=.
+        -Dsonar.host.url=$SONAR_HOST_URL
+        -Dsonar.login=$SONAR_TOKEN
+        -Dsonar.java.binaries=java/*/target/classes
+        -Dsonar.python.coverage.reportPaths=src/python-bridge/coverage.xml
+        -Dsonar.exclusions=**/*.jar,**/target/**,**/.lein/**
+  allow_failure: true
+
+# ==================== NOTIFICATIONS ====================
+
+notify:slack:
+  stage: deploy
+  image: alpine:latest
+  before_script:
+    - apk add --no-cache curl
+  script:
+    - |
+      if [ "$CI_JOB_STATUS" = "success" ]; then
+        COLOR="good"
+        MESSAGE="✅ Pipeline succeeded for $CI_PROJECT_NAME"
+      else
+        COLOR="danger"
+        MESSAGE="❌ Pipeline failed for $CI_PROJECT_NAME"
+      fi
+
+      curl -X POST -H 'Content-type: application/json' \
+        --data "{\"attachments\":[{\"color\":\"$COLOR\",\"text\":\"$MESSAGE\",\"fields\":[{\"title\":\"Branch\",\"value\":\"$CI_COMMIT_REF_NAME\",\"short\":true},{\"title\":\"Commit\",\"value\":\"$CI_COMMIT_SHA\",\"short\":true}]}]}" \
+        $SLACK_WEBHOOK_URL
+  when: always
+  allow_failure: true
+
+# ==================== RULES ====================
+
+workflow:
+  rules:
+    - if: $CI_COMMIT_BRANCH == "main"
+    - if: $CI_COMMIT_BRANCH == "develop"
+    - if: $CI_MERGE_REQUEST_ID
+    - if: $CI_COMMIT_TAG

@@ -8,7 +8,7 @@ import org.springframework.boot.test.context.SpringBootTest;
  */
 @SpringBootTest
 class CsriKgServiceApplicationTest {
-    
+
     @Test
     void contextLoads() {
         // Basic test to ensure Spring context loads without errors

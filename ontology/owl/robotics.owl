@@ -1,0 +1,150 @@
+<?xml version="1.0"?>
+<rdf:RDF xmlns="http://example.org/robotics#"
+  xml:base="http://example.org/robotics"
+  xmlns:owl="http://www.w3.org/2002/07/owl#"
+  xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+  xmlns:xml="http://www.w3.org/XML/1998/namespace"
+  xmlns:xsd="http://www.w3.org/2001/XMLSchema#"
+  xmlns:rdfs="http://www.w3.org/2000/01/rdf-schema#">
+  <owl:Ontology rdf:about="http://example.org/robotics">
+    <rdfs:label>Robotics Ontology</rdfs:label>
+    <rdfs:comment>Example ontology for robotics domain knowledge</rdfs:comment>
+  </owl:Ontology>
+
+  <!-- Classes -->
+  <owl:Class rdf:about="http://example.org/robotics#Robot">
+    <rdfs:label>Robot</rdfs:label>
+    <rdfs:comment>An autonomous or semi-autonomous machine</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#HumanoidRobot">
+    <rdfs:label>Humanoid Robot</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:comment>A robot with human-like appearance and capabilities</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#IndustrialRobot">
+    <rdfs:label>Industrial Robot</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:comment>A robot used in manufacturing and industrial applications</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#Sensor">
+    <rdfs:label>Sensor</rdfs:label>
+    <rdfs:comment>A device that detects and measures physical properties</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#CameraSensor">
+    <rdfs:label>Camera Sensor</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Sensor" />
+    <rdfs:comment>A sensor that captures visual information</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#LidarSensor">
+    <rdfs:label>Lidar Sensor</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Sensor" />
+    <rdfs:comment>A sensor that uses laser light to measure distances</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#Location">
+    <rdfs:label>Location</rdfs:label>
+    <rdfs:comment>A spatial position or place</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#Task">
+    <rdfs:label>Task</rdfs:label>
+    <rdfs:comment>An activity or goal to be accomplished</rdfs:comment>
+  </owl:Class>
+
+  <!-- Object Properties -->
+  <owl:ObjectProperty rdf:about="http://example.org/robotics#hasComponent">
+    <rdfs:label>has component</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:range rdf:resource="http://example.org/robotics#Sensor" />
+    <rdfs:comment>Relates a robot to its sensors and components</rdfs:comment>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="http://example.org/robotics#locatedAt">
+    <rdfs:label>located at</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:range rdf:resource="http://example.org/robotics#Location" />
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty" />
+    <rdfs:comment>Specifies the current location of a robot</rdfs:comment>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="http://example.org/robotics#performsTask">
+    <rdfs:label>performs task</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:range rdf:resource="http://example.org/robotics#Task" />
+    <rdfs:comment>Relates a robot to tasks it can perform</rdfs:comment>
+  </owl:ObjectProperty>
+
+  <owl:ObjectProperty rdf:about="http://example.org/robotics#canSense">
+    <rdfs:label>can sense</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Sensor" />
+    <rdfs:comment>Describes what a sensor can detect</rdfs:comment>
+  </owl:ObjectProperty>
+
+  <!-- Data Properties -->
+  <owl:DatatypeProperty rdf:about="http://example.org/robotics#hasWeight">
+    <rdfs:label>has weight</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float" />
+    <rdfs:comment>The weight of a robot in kilograms</rdfs:comment>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="http://example.org/robotics#hasSerialNumber">
+    <rdfs:label>has serial number</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#string" />
+    <rdf:type rdf:resource="http://www.w3.org/2002/07/owl#FunctionalProperty" />
+    <rdfs:comment>Unique identifier for a robot</rdfs:comment>
+  </owl:DatatypeProperty>
+
+  <owl:DatatypeProperty rdf:about="http://example.org/robotics#hasAccuracy">
+    <rdfs:label>has accuracy</rdfs:label>
+    <rdfs:domain rdf:resource="http://example.org/robotics#Sensor" />
+    <rdfs:range rdf:resource="http://www.w3.org/2001/XMLSchema#float" />
+    <rdfs:comment>The accuracy of a sensor as a percentage</rdfs:comment>
+  </owl:DatatypeProperty>
+
+  <!-- Restrictions and Complex Classes -->
+  <owl:Class rdf:about="http://example.org/robotics#AutonomousRobot">
+    <rdfs:label>Autonomous Robot</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="http://example.org/robotics#hasComponent" />
+        <owl:someValuesFrom rdf:resource="http://example.org/robotics#CameraSensor" />
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A robot that can operate without human intervention</rdfs:comment>
+  </owl:Class>
+
+  <owl:Class rdf:about="http://example.org/robotics#NavigationRobot">
+    <rdfs:label>Navigation Robot</rdfs:label>
+    <rdfs:subClassOf rdf:resource="http://example.org/robotics#Robot" />
+    <rdfs:subClassOf>
+      <owl:Restriction>
+        <owl:onProperty rdf:resource="http://example.org/robotics#hasComponent" />
+        <owl:someValuesFrom rdf:resource="http://example.org/robotics#LidarSensor" />
+      </owl:Restriction>
+    </rdfs:subClassOf>
+    <rdfs:comment>A robot capable of autonomous navigation</rdfs:comment>
+  </owl:Class>
+
+  <!-- Disjoint Classes -->
+  <owl:AllDisjointClasses>
+    <owl:members rdf:parseType="Collection">
+      <rdf:Description rdf:about="http://example.org/robotics#HumanoidRobot" />
+      <rdf:Description rdf:about="http://example.org/robotics#IndustrialRobot" />
+    </owl:members>
+  </owl:AllDisjointClasses>
+
+  <owl:AllDisjointClasses>
+    <owl:members rdf:parseType="Collection">
+      <rdf:Description rdf:about="http://example.org/robotics#CameraSensor" />
+      <rdf:Description rdf:about="http://example.org/robotics#LidarSensor" />
+    </owl:members>
+  </owl:AllDisjointClasses>
+</rdf:RDF>

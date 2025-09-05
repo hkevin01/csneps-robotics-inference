@@ -8,7 +8,7 @@ import java.util.HashMap;
 /**
  * Service for integrating with CSNePS Clojure core (Mock Implementation for v0.1.0).
  * Handles translation between Java/gRPC and CSNePS protocol.
- *
+ * 
  * This simplified version provides the integration service structure without
  * requiring the full Spring Boot and protobuf dependencies.
  */
