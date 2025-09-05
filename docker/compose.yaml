@@ -1,4 +1,4 @@
-version: '3.8'
+version: "3.8"
 
 services:
   csneps-core:
@@ -7,8 +7,8 @@ services:
       dockerfile: docker/Dockerfile.csneps
     container_name: csneps-core
     ports:
-      - "3000:3000"    # CSNePS GUI
-      - "50051:50051"  # gRPC server
+      - "3000:3000" # CSNePS GUI
+      - "50051:50051" # gRPC server
     environment:
       - CSNEPS_PORT=3000
       - GRPC_PORT=50051
@@ -132,7 +132,6 @@ volumes:
   redis_data:
   prometheus_data:
   grafana_data:
-
 # Usage examples:
 # Start core services:        docker-compose up
 # Start with development:     docker-compose --profile dev up

@@ -13,7 +13,7 @@
   "Initialize the core ontology with entities and relations."
   [entities relations]
   (log/info "Initializing ontology with" (count entities) "entities and" (count relations) "relations")
-  (swap! *ontology* assoc 
+  (swap! *ontology* assoc
          :entities (set entities)
          :relations (set relations))
   (define-core-frames!)

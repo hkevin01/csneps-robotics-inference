@@ -152,16 +152,16 @@ lein deps
 # Step 5: Build C++ components (if available)
 if command -v cmake &> /dev/null; then
     log_step "5. Building C++ components"
-    
+
     CPP_DIR="$PROJECT_ROOT/src/adapters/cpp"
     BUILD_DIR="$CPP_DIR/build"
-    
+
     mkdir -p "$BUILD_DIR"
     cd "$BUILD_DIR"
-    
+
     log_info "Configuring C++ build"
     cmake ..
-    
+
     log_info "Building C++ components"
     make -j$(nproc)
 else

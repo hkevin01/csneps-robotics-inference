@@ -10,34 +10,34 @@
   :entities #{
     ;; Core entities
     :entity :place :landmark :sensor :observation :hypothesis :fault :mode
-    
+
     ;; Robotics/SLAM entities
     :robot :pose :map :loop-closure :odometry :imu :lidar :camera
-    
-    ;; Computer vision entities  
+
+    ;; Computer vision entities
     :object :feature :detection :tracking :classification :scene
-    
+
     ;; GNC entities
     :spacecraft :thruster :guidance :navigation :control :mission :trajectory
-    
+
     ;; Medical entities
     :patient :finding :diagnosis :treatment :imaging :modality
   }
 
   :relations #{
     ;; Structural relations
-    :subject :object :time :source :confidence :supports :contradicts 
+    :subject :object :time :source :confidence :supports :contradicts
     :suggests :causes :located-in :subtype-of :instance-of
-    
+
     ;; Spatial relations
     :at :near :inside :above :below :left :right :front :back
-    
+
     ;; Temporal relations
     :before :after :during :overlaps :meets :starts :finishes
-    
+
     ;; Causal relations
     :enables :prevents :triggers :inhibits :facilitates
-    
+
     ;; Evidential relations
     :evidence-for :evidence-against :explains :justifies
   }
@@ -46,20 +46,20 @@
     ;; Sample landmark facts
     [:Landmark :L001 {:type :visual :confidence 0.9 :location [10.5 20.3 0.0]}]
     [:Landmark :L002 {:type :geometric :confidence 0.7 :location [15.2 25.8 0.0]}]
-    
+
     ;; Sample sensor facts
     [:Sensor :cam001 {:type :camera :calibrated true :noise-model :gaussian}]
     [:Sensor :imu001 {:type :imu :calibrated true :drift-rate 0.001}]
-    
+
     ;; Sample observations
     [:Observation :obs001 {:sensor :cam001 :timestamp 1625097600 :confidence 0.85}]
     [:Observation :obs002 {:sensor :imu001 :timestamp 1625097601 :confidence 0.95}]
-    
+
     ;; Domain hierarchies
     [:subtype-of :visual-landmark :landmark]
     [:subtype-of :geometric-landmark :landmark]
     [:subtype-of :semantic-landmark :landmark]
-    
+
     [:subtype-of :camera :sensor]
     [:subtype-of :lidar :sensor]
     [:subtype-of :imu :sensor]
@@ -71,7 +71,7 @@
       :description "Promote landmarks with multiple high-confidence observations"
       :domain :robotics
       :priority 10
-      :if [:and 
+      :if [:and
            [:LoopClosure ?landmark ?score1 ?method1]
            [:AppearanceMatch ?landmark :consistent ?score2]
            [:> ?score1 0.8]
@@ -169,16 +169,16 @@
     {:type :spatial
      :name :landmark-proximity
      :description "Landmarks cannot be too close together"
-     :rule [:forall [?l1 ?l2] 
+     :rule [:forall [?l1 ?l2]
             [:=> [:and [:Landmark ?l1] [:Landmark ?l2] [:!= ?l1 ?l2]]
                  [:> [:distance ?l1 ?l2] 1.0]]]}
 
-    ;; Temporal constraints  
+    ;; Temporal constraints
     {:type :temporal
      :name :observation-ordering
      :description "Observations must be temporally ordered"
      :rule [:forall [?obs1 ?obs2]
-            [:=> [:and [:Observation ?obs1 {:timestamp ?t1}] 
+            [:=> [:and [:Observation ?obs1 {:timestamp ?t1}]
                        [:Observation ?obs2 {:timestamp ?t2}]
                        [:caused-by ?obs2 ?obs1]]
                  [:< ?t1 ?t2]]]}
@@ -222,17 +222,17 @@
     :inference-timeout-ms 5000
     :parallel-inference true
     :confidence-threshold 0.5
-    
+
     ;; Memory management
     :max-facts 100000
     :gc-interval-ms 60000
     :fact-expiry-hours 24
-    
+
     ;; Logging and debugging
     :log-level :info
     :trace-inference true
     :save-justifications true
-    
+
     ;; Performance tuning
     :batch-size 100
     :rule-optimization true

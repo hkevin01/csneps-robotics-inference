@@ -1,0 +1,101 @@
+syntax = "proto3";
+
+package csri.queries;
+
+option java_package = "com.csri.queries";
+option java_outer_classname = "QueriesProto";
+
+import "google/protobuf/timestamp.proto";
+
+// Service for querying CSNePS v0.1.0 - minimal implementation
+service QueryService {
+  rpc QueryLandmarks(LandmarkQuery) returns (LandmarkResponse);
+  rpc QueryHypotheses(HypothesisQuery) returns (HypothesisResponse);
+  rpc QueryRecommendations(RecommendationQuery) returns (RecommendationResponse);
+  rpc QueryRuleTrace(RuleTraceQuery) returns (RuleTraceResponse);
+}
+
+// Landmark queries for SLAM domain
+message LandmarkQuery {
+  string landmark_id = 1;
+  bool high_confidence_only = 2;
+  double min_score = 3;
+  int32 limit = 4;
+}
+
+message LandmarkResponse {
+  repeated LandmarkInfo landmarks = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message LandmarkInfo {
+  string landmark_id = 1;
+  double confidence_score = 2;
+  string status = 3;  // "high_confidence", "pending", "rejected"
+  repeated string supporting_evidence = 4;
+  google.protobuf.Timestamp last_updated = 5;
+}
+
+// Hypothesis queries for GNC domain
+message HypothesisQuery {
+  string event_type = 1;
+  string mode = 2;
+  double min_severity = 3;
+  int32 limit = 4;
+}
+
+message HypothesisResponse {
+  repeated HypothesisInfo hypotheses = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message HypothesisInfo {
+  string hypothesis_id = 1;
+  string event_type = 2;
+  string mode = 3;
+  double severity = 4;
+  string conclusion = 5;
+  repeated string evidence = 6;
+  google.protobuf.Timestamp created_at = 7;
+}
+
+// Recommendation queries for medical domain
+message RecommendationQuery {
+  string patient_id = 1;
+  string finding_type = 2;
+  double min_confidence = 3;
+  int32 limit = 4;
+}
+
+message RecommendationResponse {
+  repeated RecommendationInfo recommendations = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+message RecommendationInfo {
+  string recommendation_id = 1;
+  string patient_id = 2;
+  string finding_type = 3;
+  string action = 4;       // "follow_up_3_months", "biopsy", "no_action"
+  string priority = 5;     // "urgent", "routine", "optional"
+  double confidence = 6;
+  repeated string reasoning = 7;
+  google.protobuf.Timestamp created_at = 8;
+}
+
+// Rule trace queries for debugging/explainability
+message RuleTraceQuery {
+  string belief_id = 1;
+  int32 max_depth = 2;
+  bool include_timestamps = 3;
+}
+
+message RuleTraceResponse {
+  string trace_tree = 1;  // JSON serialized trace
+  repeated string rule_path = 2;
+  bool success = 3;
+  string message = 4;
+}

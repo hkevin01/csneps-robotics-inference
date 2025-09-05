@@ -27,20 +27,20 @@ graph TB
     A[Perception Layer<br/>Python/C++] --> B[Bridge Layer<br/>gRPC/ZeroMQ]
     B --> C[CSNePS Core<br/>Clojure]
     C --> D[Explanation UI<br/>Web Dashboard]
-    
+
     A1[SLAM/Localization] --> A
     A2[Computer Vision] --> A
     A3[GNC Events] --> A
     A4[Medical Imaging] --> A
-    
+
     B1[Protocol Buffers] --> B
     B2[ROS 2 Nodes] --> B
     B3[Message Routing] --> B
-    
+
     C1[Knowledge Base] --> C
     C2[Inference Rules] --> C
     C3[Concurrent Reasoning] --> C
-    
+
     D1[Justification Trees] --> D
     D2[Confidence Tracking] --> D
     D3[Interactive Queries] --> D
@@ -68,7 +68,7 @@ graph TB
    ```bash
    # Option 1: Git submodule (recommended for development)
    git submodule update --init --recursive
-   
+
    # Option 2: Local Maven installation
    # Follow CSNePS repository instructions for local installation
    ```
@@ -92,11 +92,11 @@ graph TB
    # Terminal 1: Start CSNePS core
    cd src/csneps-core
    lein run -c
-   
+
    # Terminal 2: Start web UI (in a separate terminal)
    cd src/webui
    python -m http.server 8080
-   
+
    # Terminal 3: Run example adapter
    cd src/adapters/python
    python -m csri_bridge.examples.slam_adapter
@@ -181,7 +181,7 @@ CSNEPS_PORT=3000
 CSNEPS_HOST=localhost
 CSNEPS_KB_FILE=resources/sample-kb.edn
 
-# Bridge Configuration  
+# Bridge Configuration
 GRPC_PORT=50051
 ZMQ_PORT=5555
 LOG_LEVEL=INFO
@@ -216,7 +216,7 @@ src/
 │   └── resources/        # Knowledge base files
 ├── adapters/             # Language-specific bridges
 │   ├── python/           # Python gRPC/ROS 2 adapters
-│   └── cpp/              # C++ ZeroMQ adapters  
+│   └── cpp/              # C++ ZeroMQ adapters
 └── webui/                # Web-based visualization
 
 proto/                    # Protocol buffer definitions
@@ -233,7 +233,7 @@ docs/                     # Documentation
 cd src/csneps-core
 lein test
 
-# Python tests  
+# Python tests
 cd src/adapters/python
 pytest
 

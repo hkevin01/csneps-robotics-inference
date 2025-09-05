@@ -41,9 +41,9 @@ record_test_result() {
     local test_name="$1"
     local result="$2"
     local details="$3"
-    
+
     TEST_RESULTS+=("$test_name:$result:$details")
-    
+
     case "$result" in
         "PASS") TESTS_PASSED=$((TESTS_PASSED + 1)) ;;
         "FAIL") TESTS_FAILED=$((TESTS_FAILED + 1)) ;;
@@ -54,7 +54,7 @@ record_test_result() {
 # Test 1: Project Structure Validation
 test_project_structure() {
     log_test "Testing project structure..."
-    
+
     local required_dirs=(
         "src/csneps-core"
         "src/adapters/python"
@@ -71,15 +71,15 @@ test_project_structure() {
         ".vscode"
         ".copilot"
     )
-    
+
     local missing_dirs=()
-    
+
     for dir in "${required_dirs[@]}"; do
         if [ ! -d "$PROJECT_ROOT/$dir" ]; then
             missing_dirs+=("$dir")
         fi
     done
-    
+
     if [ ${#missing_dirs[@]} -eq 0 ]; then
         record_test_result "Project Structure" "PASS" "All required directories present"
         log_info "✓ Project structure validation passed"
@@ -92,7 +92,7 @@ test_project_structure() {
 # Test 2: Configuration Files
 test_configuration_files() {
     log_test "Testing configuration files..."
-    
+
     local config_files=(
         ".gitignore"
         ".editorconfig"
@@ -109,15 +109,15 @@ test_configuration_files() {
         "proto/observations.proto"
         "proto/beliefs.proto"
     )
-    
+
     local missing_files=()
-    
+
     for file in "${config_files[@]}"; do
         if [ ! -f "$PROJECT_ROOT/$file" ]; then
             missing_files+=("$file")
         fi
     done
-    
+
     if [ ${#missing_files[@]} -eq 0 ]; then
         record_test_result "Configuration Files" "PASS" "All configuration files present"
         log_info "✓ Configuration files validation passed"
@@ -130,15 +130,15 @@ test_configuration_files() {
 # Test 3: Clojure Setup
 test_clojure_setup() {
     log_test "Testing Clojure setup..."
-    
+
     if ! command -v lein &> /dev/null; then
         record_test_result "Clojure Setup" "SKIP" "Leiningen not installed"
         log_warn "⚠ Leiningen not found, skipping Clojure tests"
         return
     fi
-    
+
     cd "$PROJECT_ROOT/src/csneps-core"
-    
+
     # Check if project.clj is valid
     if lein check 2>/dev/null; then
         record_test_result "Clojure Setup" "PASS" "project.clj is valid"
@@ -152,15 +152,15 @@ test_clojure_setup() {
 # Test 4: Python Setup
 test_python_setup() {
     log_test "Testing Python setup..."
-    
+
     if ! command -v python3 &> /dev/null; then
         record_test_result "Python Setup" "SKIP" "Python3 not installed"
         log_warn "⚠ Python3 not found, skipping Python tests"
         return
     fi
-    
+
     cd "$PROJECT_ROOT/src/adapters/python"
-    
+
     # Check if setup.py is valid
     if python3 setup.py check 2>/dev/null; then
         record_test_result "Python Setup" "PASS" "setup.py is valid"
@@ -174,15 +174,15 @@ test_python_setup() {
 # Test 5: Docker Configuration
 test_docker_setup() {
     log_test "Testing Docker configuration..."
-    
+
     if ! command -v docker &> /dev/null; then
         record_test_result "Docker Setup" "SKIP" "Docker not installed"
         log_warn "⚠ Docker not found, skipping Docker tests"
         return
     fi
-    
+
     cd "$PROJECT_ROOT"
-    
+
     # Validate docker-compose.yml
     if docker-compose config >/dev/null 2>&1; then
         record_test_result "Docker Setup" "PASS" "docker-compose.yml is valid"
@@ -196,18 +196,18 @@ test_docker_setup() {
 # Test 6: Protobuf Definitions
 test_protobuf_setup() {
     log_test "Testing protobuf definitions..."
-    
+
     if ! command -v protoc &> /dev/null; then
         record_test_result "Protobuf Setup" "SKIP" "protoc not installed"
         log_warn "⚠ Protocol buffer compiler not found, skipping protobuf tests"
         return
     fi
-    
+
     cd "$PROJECT_ROOT/proto"
-    
+
     local proto_files=(*.proto)
     local validation_passed=true
-    
+
     for proto_file in "${proto_files[@]}"; do
         if [ -f "$proto_file" ]; then
             if ! protoc --proto_path=. --descriptor_set_out=/dev/null "$proto_file" 2>/dev/null; then
@@ -216,7 +216,7 @@ test_protobuf_setup() {
             fi
         fi
     done
-    
+
     if $validation_passed; then
         record_test_result "Protobuf Setup" "PASS" "All protobuf files are valid"
         log_info "✓ Protobuf definitions validation passed"
@@ -228,14 +228,14 @@ test_protobuf_setup() {
 # Test 7: VSCode Configuration
 test_vscode_setup() {
     log_test "Testing VSCode configuration..."
-    
+
     local vscode_files=(
         ".vscode/settings.json"
         ".vscode/extensions.json"
     )
-    
+
     local valid_config=true
-    
+
     for file in "${vscode_files[@]}"; do
         if [ -f "$PROJECT_ROOT/$file" ]; then
             # Check if JSON is valid
@@ -248,7 +248,7 @@ test_vscode_setup() {
             valid_config=false
         fi
     done
-    
+
     if $valid_config; then
         record_test_result "VSCode Setup" "PASS" "VSCode configuration is valid"
         log_info "✓ VSCode configuration validation passed"
@@ -260,15 +260,15 @@ test_vscode_setup() {
 # Test 8: Documentation Structure
 test_documentation() {
     log_test "Testing documentation structure..."
-    
+
     local doc_files=(
         "README.md"
         "CHANGELOG.md"
         "docs/project-plan.md"
     )
-    
+
     local missing_docs=()
-    
+
     for doc in "${doc_files[@]}"; do
         if [ ! -f "$PROJECT_ROOT/$doc" ]; then
             missing_docs+=("$doc")
@@ -276,7 +276,7 @@ test_documentation() {
             missing_docs+=("$doc (empty)")
         fi
     done
-    
+
     if [ ${#missing_docs[@]} -eq 0 ]; then
         record_test_result "Documentation" "PASS" "All documentation files present and non-empty"
         log_info "✓ Documentation structure validation passed"
@@ -289,29 +289,29 @@ test_documentation() {
 # Generate test report
 generate_report() {
     log_info "Generating test report..."
-    
+
     echo ""
     echo "========================================"
     echo "       TEST EXECUTION SUMMARY"
     echo "========================================"
     echo ""
-    
+
     printf "%-20s %-8s %-50s\n" "TEST NAME" "RESULT" "DETAILS"
     echo "------------------------------------------------------------------------"
-    
+
     for result in "${TEST_RESULTS[@]}"; do
         IFS=':' read -r test_name test_result test_details <<< "$result"
-        
+
         case "$test_result" in
             "PASS") color="$GREEN" ;;
             "FAIL") color="$RED" ;;
             "SKIP") color="$YELLOW" ;;
             *) color="$NC" ;;
         esac
-        
+
         printf "%-20s ${color}%-8s${NC} %-50s\n" "$test_name" "$test_result" "$test_details"
     done
-    
+
     echo "------------------------------------------------------------------------"
     echo ""
     echo "Summary:"
@@ -320,7 +320,7 @@ generate_report() {
     echo "  ⚠ Skipped: $TESTS_SKIPPED"
     echo "  Total:    $((TESTS_PASSED + TESTS_FAILED + TESTS_SKIPPED))"
     echo ""
-    
+
     if [ $TESTS_FAILED -eq 0 ]; then
         log_info "🎉 All tests passed! Project setup is complete."
         echo ""
@@ -341,7 +341,7 @@ main() {
     log_info "======================================================="
     log_info "Project root: $PROJECT_ROOT"
     echo ""
-    
+
     # Run all tests
     test_project_structure
     test_configuration_files
@@ -351,7 +351,7 @@ main() {
     test_protobuf_setup
     test_vscode_setup
     test_documentation
-    
+
     # Generate and display report
     generate_report
 }

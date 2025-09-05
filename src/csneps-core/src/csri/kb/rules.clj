@@ -149,7 +149,7 @@
              (= val-a val-b))
         ;; Default: try to match against knowledge base
         (assertions/query-fact condition bindings)))
-    
+
     :else
     ;; Simple fact query
     (assertions/query-fact condition bindings)))
@@ -224,7 +224,7 @@
                           :bindings bindings
                           :conclusion conclusion
                           :timestamp (System/currentTimeMillis)}]
-    (swap! *rules* update-in [:inference-stats :recent] 
+    (swap! *rules* update-in [:inference-stats :recent]
            #(take 100 (cons inference-record %)))
     (swap! *rules* update-in [:inference-stats :total-count] (fnil inc 0))))
 

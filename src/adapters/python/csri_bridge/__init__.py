@@ -12,7 +12,7 @@ from .adapters import SLAMAdapter, ComputerVisionAdapter, MedicalAdapter, GNCAda
 
 __all__ = [
     "CSRIClient",
-    "CSRIRosNode", 
+    "CSRIRosNode",
     "SLAMAdapter",
     "ComputerVisionAdapter",
     "MedicalAdapter",

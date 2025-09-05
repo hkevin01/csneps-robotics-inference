@@ -35,60 +35,60 @@ log_error() {
 # Check prerequisites
 check_prerequisites() {
     log_info "Checking prerequisites..."
-    
+
     if ! command -v java &> /dev/null; then
         log_error "Java is not installed. Please install Java 11 or higher."
         exit 1
     fi
-    
+
     if ! command -v lein &> /dev/null; then
         log_error "Leiningen is not installed. Please install Leiningen."
         exit 1
     fi
-    
+
     # Check Java version
     JAVA_VERSION=$(java -version 2>&1 | head -n 1 | cut -d'"' -f2)
     log_info "Java version: $JAVA_VERSION"
-    
+
     # Check if CSNePS directory exists
     if [ ! -d "$CSNEPS_DIR" ]; then
         log_error "CSNePS directory not found: $CSNEPS_DIR"
         exit 1
     fi
-    
+
     # Check if knowledge base file exists
     if [ ! -f "$CSNEPS_DIR/$KB_FILE" ]; then
         log_warn "Knowledge base file not found: $KB_FILE"
         log_warn "Will attempt to create default knowledge base"
     fi
-    
+
     log_info "Prerequisites check completed"
 }
 
 # Setup environment
 setup_environment() {
     log_info "Setting up environment..."
-    
+
     # Set JVM options for better performance
     export JVM_OPTS="-Xmx2g -XX:+UseG1GC -XX:+UseStringDeduplication"
-    
+
     # Set CSNePS specific environment variables
     export CSNEPS_PORT="${CSNEPS_PORT:-3000}"
     export GRPC_PORT="${GRPC_PORT:-50051}"
     export LOG_LEVEL="${LOG_LEVEL:-INFO}"
-    
+
     log_info "Environment setup completed"
 }
 
 # Create default knowledge base if it doesn't exist
 create_default_kb() {
     local kb_path="$CSNEPS_DIR/$KB_FILE"
-    
+
     if [ ! -f "$kb_path" ]; then
         log_info "Creating default knowledge base: $kb_path"
-        
+
         mkdir -p "$(dirname "$kb_path")"
-        
+
         cat > "$kb_path" << 'EOF'
 {:entities #{:entity :place :landmark :sensor :observation :hypothesis :fault :mode :patient :finding}
  :relations #{:subject :object :time :source :confidence :supports :contradicts :suggests :causes :located-in :subtype-of}
@@ -110,9 +110,9 @@ start_csneps() {
     log_info "Starting CSNePS in $MODE mode..."
     log_info "Knowledge base: $KB_FILE"
     log_info "Working directory: $CSNEPS_DIR"
-    
+
     cd "$CSNEPS_DIR"
-    
+
     case "$MODE" in
         "cli")
             log_info "Starting CSNePS CLI mode"
@@ -149,7 +149,7 @@ trap cleanup EXIT
 main() {
     log_info "CSNePS Robotics Inference - Starting CSNePS Core"
     log_info "======================================================="
-    
+
     check_prerequisites
     setup_environment
     create_default_kb

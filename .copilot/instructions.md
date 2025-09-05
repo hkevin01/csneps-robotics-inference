@@ -4,7 +4,7 @@
 
 This is a hybrid symbolic-probabilistic reasoning system that integrates:
 - **CSNePS (Clojure SNePS 3)** for knowledge representation and inference
-- **Multi-language bridges** (Python, C++) for sensor data integration  
+- **Multi-language bridges** (Python, C++) for sensor data integration
 - **Domain expertise** in robotics, computer vision, GNC, and medical imaging
 - **Real-time reasoning** with explainable AI capabilities
 
@@ -17,7 +17,7 @@ This is a hybrid symbolic-probabilistic reasoning system that integrates:
 - Use `defn` with docstrings for public functions
 - Follow CSNePS conventions for knowledge representation
 
-### Python (Bridge Adapters)  
+### Python (Bridge Adapters)
 - Use snake_case for functions and variables
 - Class names in PascalCase
 - Type hints for all public functions
@@ -72,7 +72,7 @@ This is a hybrid symbolic-probabilistic reasoning system that integrates:
 - Create mock data for testing scenarios
 - Test error conditions and edge cases
 
-### Documentation  
+### Documentation
 - Generate API documentation from code
 - Include usage examples
 - Explain complex algorithms and reasoning
@@ -103,6 +103,6 @@ This is a hybrid symbolic-probabilistic reasoning system that integrates:
 ## Integration Patterns
 
 - **Sensor → Adapter → CSNePS → Decision**: Standard data flow
-- **Query → Reasoning → Justification → Response**: Interactive queries  
+- **Query → Reasoning → Justification → Response**: Interactive queries
 - **Conflict → Resolution → Update**: Consistency management
 - **Event → Rule → Action → Feedback**: Reactive behavior
