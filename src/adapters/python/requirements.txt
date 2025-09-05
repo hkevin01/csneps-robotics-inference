@@ -1,0 +1,23 @@
+# Core dependencies
+grpcio>=1.58.0
+grpcio-tools>=1.58.0
+protobuf>=4.24.0
+asyncio-grpc>=1.5.0
+
+# Data processing
+numpy>=1.21.0
+pandas>=1.5.0
+
+# Logging and utilities
+loguru>=0.7.0
+pydantic>=2.0.0
+click>=8.1.0
+
+# Async support
+aiofiles>=23.0.0
+httpx>=0.24.0
+
+# Optional dependencies (install with extras)
+# opencv-python>=4.7.0  # [cv]
+# rclpy>=3.0  # [ros2]
+# pydicom>=2.4.0  # [medical]

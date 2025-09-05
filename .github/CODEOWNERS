@@ -1,0 +1,22 @@
+# Global owners
+* @repository-owner
+
+# CSNePS Core (Clojure)
+/src/csneps-core/ @clojure-maintainer
+
+# Python Adapters
+/src/adapters/python/ @python-maintainer
+
+# C++ Adapters
+/src/adapters/cpp/ @cpp-maintainer
+
+# Docker and DevOps
+/docker/ @devops-maintainer
+/.github/ @devops-maintainer
+
+# Documentation
+/docs/ @docs-maintainer
+README.md @docs-maintainer
+
+# Protocol definitions
+/proto/ @protocol-maintainer

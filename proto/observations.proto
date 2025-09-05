@@ -1,0 +1,189 @@
+syntax = "proto3";
+
+package csri.observations;
+
+option java_package = "com.csri.observations";
+option java_outer_classname = "ObservationsProto";
+
+import "google/protobuf/timestamp.proto";
+
+// Service for submitting observations to CSNePS
+service ObservationService {
+  rpc SubmitLoopClosure(LoopClosure) returns (ObservationResponse);
+  rpc SubmitVisionDetection(VisionDetection) returns (ObservationResponse);
+  rpc SubmitGNCEvent(GNCEvent) returns (ObservationResponse);
+  rpc SubmitMedicalFinding(MedicalFinding) returns (ObservationResponse);
+  rpc SubmitGenericObservation(GenericObservation) returns (ObservationResponse);
+  
+  rpc QueryBeliefs(BeliefQuery) returns (BeliefResponse);
+  rpc GetSystemStatus(StatusRequest) returns (SystemStatus);
+}
+
+// SLAM/Robotics observations
+message LoopClosure {
+  string landmark_id = 1;
+  double score = 2;
+  string method = 3;  // "icp", "visual", "semantic"
+  Pose pose_estimate = 4;
+  double uncertainty = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  string sensor_id = 7;
+}
+
+message Pose {
+  Point3D position = 1;
+  Quaternion orientation = 2;
+  repeated double covariance = 3;  // 6x6 covariance matrix (flattened)
+}
+
+message Point3D {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+}
+
+message Quaternion {
+  double x = 1;
+  double y = 2;
+  double z = 3;
+  double w = 4;
+}
+
+// Computer Vision observations
+message VisionDetection {
+  string object_class = 1;
+  double confidence = 2;
+  BoundingBox bounding_box = 3;
+  repeated Feature features = 4;
+  string image_source = 5;
+  google.protobuf.Timestamp timestamp = 6;
+  CameraIntrinsics camera_info = 7;
+}
+
+message BoundingBox {
+  int32 x = 1;
+  int32 y = 2;
+  int32 width = 3;
+  int32 height = 4;
+}
+
+message Feature {
+  string name = 1;
+  repeated double vector = 2;
+  string type = 3;  // "sift", "orb", "deep", etc.
+}
+
+message CameraIntrinsics {
+  double fx = 1;
+  double fy = 2;
+  double cx = 3;
+  double cy = 4;
+  repeated double distortion = 5;
+}
+
+// GNC (Guidance, Navigation, Control) observations
+message GNCEvent {
+  string event_type = 1;  // "thruster_anomaly", "mode_transition", "fault_detected"
+  google.protobuf.Timestamp timestamp = 2;
+  map<string, double> parameters = 3;
+  Severity severity = 4;
+  string subsystem = 5;
+  string description = 6;
+}
+
+enum Severity {
+  INFO = 0;
+  WARNING = 1;
+  ERROR = 2;
+  CRITICAL = 3;
+}
+
+// Medical imaging observations
+message MedicalFinding {
+  string patient_id = 1;
+  string finding_type = 2;  // "lesion", "mass", "calcification"
+  AnatomicalLocation location = 3;
+  double size_mm = 4;
+  double confidence = 5;
+  string modality = 6;  // "CT", "MRI", "US", "XR"
+  google.protobuf.Timestamp acquisition_time = 7;
+  map<string, string> metadata = 8;
+}
+
+message AnatomicalLocation {
+  string organ = 1;
+  string region = 2;
+  Point3D coordinates = 3;  // In image coordinate system
+  string coordinate_system = 4;
+}
+
+// Generic observation for extensibility
+message GenericObservation {
+  string observation_type = 1;
+  map<string, string> string_data = 2;
+  map<string, double> numeric_data = 3;
+  map<string, bool> boolean_data = 4;
+  google.protobuf.Timestamp timestamp = 5;
+  string source_id = 6;
+  double confidence = 7;
+}
+
+// Response messages
+message ObservationResponse {
+  bool success = 1;
+  string message = 2;
+  string observation_id = 3;
+  repeated string triggered_rules = 4;
+  int32 inference_count = 5;
+}
+
+message BeliefQuery {
+  string query_type = 1;  // "all", "by_type", "by_confidence", "recent"
+  map<string, string> filters = 2;
+  int32 limit = 3;
+  bool include_justification = 4;
+}
+
+message BeliefResponse {
+  repeated Belief beliefs = 5;
+  bool has_more = 6;
+  string next_token = 7;
+}
+
+message Belief {
+  string belief_id = 1;
+  string belief_type = 2;
+  map<string, string> content = 3;
+  double confidence = 4;
+  google.protobuf.Timestamp created_at = 5;
+  repeated string evidence = 6;
+  Justification justification = 7;
+}
+
+message Justification {
+  string rule_name = 1;
+  repeated string premises = 2;
+  string explanation = 3;
+  double certainty = 4;
+}
+
+message StatusRequest {
+  bool include_stats = 1;
+  bool include_recent_activity = 2;
+}
+
+message SystemStatus {
+  bool running = 1;
+  map<string, bool> components = 2;
+  SystemStats stats = 3;
+  repeated string recent_activity = 4;
+  google.protobuf.Timestamp last_update = 5;
+}
+
+message SystemStats {
+  int64 total_facts = 1;
+  int64 active_rules = 2;
+  int64 recent_inferences = 3;
+  int64 total_observations = 4;
+  double avg_processing_time_ms = 5;
+}

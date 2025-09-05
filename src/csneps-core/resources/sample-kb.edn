@@ -1,0 +1,241 @@
+{
+  :metadata {
+    :name "CSNePS Robotics Inference - Sample Knowledge Base"
+    :version "0.1.0"
+    :description "Sample knowledge base demonstrating multi-domain reasoning"
+    :domains [:robotics :computer-vision :gnc :medical]
+    :created "2025-09-05"
+  }
+
+  :entities #{
+    ;; Core entities
+    :entity :place :landmark :sensor :observation :hypothesis :fault :mode
+    
+    ;; Robotics/SLAM entities
+    :robot :pose :map :loop-closure :odometry :imu :lidar :camera
+    
+    ;; Computer vision entities  
+    :object :feature :detection :tracking :classification :scene
+    
+    ;; GNC entities
+    :spacecraft :thruster :guidance :navigation :control :mission :trajectory
+    
+    ;; Medical entities
+    :patient :finding :diagnosis :treatment :imaging :modality
+  }
+
+  :relations #{
+    ;; Structural relations
+    :subject :object :time :source :confidence :supports :contradicts 
+    :suggests :causes :located-in :subtype-of :instance-of
+    
+    ;; Spatial relations
+    :at :near :inside :above :below :left :right :front :back
+    
+    ;; Temporal relations
+    :before :after :during :overlaps :meets :starts :finishes
+    
+    ;; Causal relations
+    :enables :prevents :triggers :inhibits :facilitates
+    
+    ;; Evidential relations
+    :evidence-for :evidence-against :explains :justifies
+  }
+
+  :facts [
+    ;; Sample landmark facts
+    [:Landmark :L001 {:type :visual :confidence 0.9 :location [10.5 20.3 0.0]}]
+    [:Landmark :L002 {:type :geometric :confidence 0.7 :location [15.2 25.8 0.0]}]
+    
+    ;; Sample sensor facts
+    [:Sensor :cam001 {:type :camera :calibrated true :noise-model :gaussian}]
+    [:Sensor :imu001 {:type :imu :calibrated true :drift-rate 0.001}]
+    
+    ;; Sample observations
+    [:Observation :obs001 {:sensor :cam001 :timestamp 1625097600 :confidence 0.85}]
+    [:Observation :obs002 {:sensor :imu001 :timestamp 1625097601 :confidence 0.95}]
+    
+    ;; Domain hierarchies
+    [:subtype-of :visual-landmark :landmark]
+    [:subtype-of :geometric-landmark :landmark]
+    [:subtype-of :semantic-landmark :landmark]
+    
+    [:subtype-of :camera :sensor]
+    [:subtype-of :lidar :sensor]
+    [:subtype-of :imu :sensor]
+  ]
+
+  :rules [
+    {
+      :name :promote-high-confidence-landmark
+      :description "Promote landmarks with multiple high-confidence observations"
+      :domain :robotics
+      :priority 10
+      :if [:and 
+           [:LoopClosure ?landmark ?score1 ?method1]
+           [:AppearanceMatch ?landmark :consistent ?score2]
+           [:> ?score1 0.8]
+           [:> ?score2 0.7]]
+      :then [:HighConfidenceLandmark ?landmark]
+      :justification "Strong loop closure and appearance consistency indicate reliable landmark"
+    }
+
+    {
+      :name :detect-map-inconsistency
+      :description "Detect potential map inconsistencies from conflicting landmark positions"
+      :domain :robotics
+      :priority 8
+      :if [:and
+           [:Landmark ?l1 {:location ?pos1 :confidence ?conf1}]
+           [:Landmark ?l2 {:location ?pos2 :confidence ?conf2}]
+           [:spatial-conflict ?pos1 ?pos2 0.5]
+           [:> ?conf1 0.6]
+           [:> ?conf2 0.6]]
+      :then [:Hypothesis :map-inconsistency {:landmarks [?l1 ?l2] :severity :medium}]
+      :justification "Spatially conflicting landmarks with good confidence suggest map error"
+    }
+
+    {
+      :name :validate-object-detection
+      :description "Validate object detections using contextual information"
+      :domain :computer-vision
+      :priority 7
+      :if [:and
+           [:VisionDetection ?object ?confidence ?bbox ?features]
+           [:Scene ?scene {:type ?scene-type}]
+           [:contextually-valid ?object ?scene-type]
+           [:> ?confidence 0.8]]
+      :then [:ValidatedDetection ?object {:bbox ?bbox :scene ?scene}]
+      :justification "High-confidence detection in appropriate context"
+    }
+
+    {
+      :name :gnc-fault-detection
+      :description "Detect potential GNC faults from anomalous behavior"
+      :domain :gnc
+      :priority 9
+      :if [:and
+           [:GNCEvent :thruster-anomaly {:timestamp ?t :parameters ?params}]
+           [:Mode :burn {:active true :timestamp ?t2}]
+           [:temporal-overlap ?t ?t2]]
+      :then [:Hypothesis :propellant-cavitation {:evidence ?params :confidence 0.7}]
+      :justification "Thruster anomaly during burn phase suggests cavitation"
+    }
+
+    {
+      :name :medical-followup-recommendation
+      :description "Recommend follow-up imaging for concerning findings"
+      :domain :medical
+      :priority 6
+      :if [:and
+           [:Finding :lesion {:location ?loc :size ?size :confidence ?conf}]
+           [:Patient ?patient {:risk-level :high}]
+           [:> ?size 8.0]
+           [:> ?conf 0.75]]
+      :then [:Recommendation :contrast-imaging {:patient ?patient :timeframe "2-3 months"}]
+      :justification "Large lesion in high-risk patient requires follow-up imaging"
+    }
+
+    {
+      :name :confidence-propagation
+      :description "Propagate confidence through inference chains"
+      :domain :general
+      :priority 5
+      :if [:and
+           [:supports ?evidence ?conclusion]
+           [:confidence ?evidence ?conf-ev]
+           [:rule-strength ?rule ?strength]]
+      :then [:confidence ?conclusion [:* ?conf-ev ?strength]]
+      :justification "Confidence propagates through evidence chains"
+    }
+
+    {
+      :name :conflict-resolution
+      :description "Resolve conflicts by preferring higher confidence beliefs"
+      :domain :general
+      :priority 4
+      :if [:and
+           [:contradicts ?belief1 ?belief2]
+           [:confidence ?belief1 ?conf1]
+           [:confidence ?belief2 ?conf2]
+           [:> ?conf1 ?conf2]]
+      :then [:retract ?belief2]
+      :justification "Higher confidence belief preferred in conflict resolution"
+    }
+  ]
+
+  :constraints [
+    ;; Spatial constraints
+    {:type :spatial
+     :name :landmark-proximity
+     :description "Landmarks cannot be too close together"
+     :rule [:forall [?l1 ?l2] 
+            [:=> [:and [:Landmark ?l1] [:Landmark ?l2] [:!= ?l1 ?l2]]
+                 [:> [:distance ?l1 ?l2] 1.0]]]}
+
+    ;; Temporal constraints  
+    {:type :temporal
+     :name :observation-ordering
+     :description "Observations must be temporally ordered"
+     :rule [:forall [?obs1 ?obs2]
+            [:=> [:and [:Observation ?obs1 {:timestamp ?t1}] 
+                       [:Observation ?obs2 {:timestamp ?t2}]
+                       [:caused-by ?obs2 ?obs1]]
+                 [:< ?t1 ?t2]]]}
+
+    ;; Confidence constraints
+    {:type :confidence
+     :name :confidence-bounds
+     :description "Confidence values must be between 0 and 1"
+     :rule [:forall [?entity ?conf]
+            [:=> [:confidence ?entity ?conf]
+                 [:and [:>= ?conf 0.0] [:<= ?conf 1.0]]]]}
+  ]
+
+  :queries [
+    ;; Common query patterns for testing
+    {:name :high-confidence-landmarks
+     :pattern [:HighConfidenceLandmark ?landmark]
+     :description "Find all high-confidence landmarks"}
+
+    {:name :recent-observations
+     :pattern [:Observation ?obs {:timestamp ?t}]
+     :filter [:> ?t [:- [:current-time] 3600]]
+     :description "Find observations from the last hour"}
+
+    {:name :active-hypotheses
+     :pattern [:Hypothesis ?type ?params]
+     :description "Find all active hypotheses"}
+
+    {:name :conflict-situations
+     :pattern [:contradicts ?belief1 ?belief2]
+     :description "Find conflicting beliefs"}
+
+    {:name :pending-recommendations
+     :pattern [:Recommendation ?type ?params]
+     :description "Find pending recommendations"}
+  ]
+
+  :settings {
+    ;; Inference engine settings
+    :max-inference-depth 10
+    :inference-timeout-ms 5000
+    :parallel-inference true
+    :confidence-threshold 0.5
+    
+    ;; Memory management
+    :max-facts 100000
+    :gc-interval-ms 60000
+    :fact-expiry-hours 24
+    
+    ;; Logging and debugging
+    :log-level :info
+    :trace-inference true
+    :save-justifications true
+    
+    ;; Performance tuning
+    :batch-size 100
+    :rule-optimization true
+    :index-facts true
+  }
+}

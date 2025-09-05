@@ -1,0 +1,167 @@
+syntax = "proto3";
+
+package csri.beliefs;
+
+option java_package = "com.csri.beliefs";
+option java_outer_classname = "BeliefsProto";
+
+import "google/protobuf/timestamp.proto";
+
+// Service for querying and managing beliefs
+service BeliefService {
+  rpc QueryBeliefs(BeliefQuery) returns (BeliefQueryResponse);
+  rpc GetBelief(BeliefRequest) returns (BeliefResponse);
+  rpc GetJustification(JustificationRequest) returns (JustificationResponse);
+  rpc ExplainInference(ExplanationRequest) returns (ExplanationResponse);
+  rpc GetConflicts(ConflictQuery) returns (ConflictResponse);
+}
+
+// Query and request messages
+message BeliefQuery {
+  string query_pattern = 1;  // Pattern to match beliefs
+  map<string, string> filters = 2;
+  double min_confidence = 3;
+  int32 max_results = 4;
+  bool include_justifications = 5;
+  google.protobuf.Timestamp since = 6;
+}
+
+message BeliefRequest {
+  string belief_id = 1;
+  bool include_justification = 2;
+  bool include_evidence = 3;
+}
+
+message JustificationRequest {
+  string belief_id = 1;
+  int32 max_depth = 2;
+  bool include_rule_details = 3;
+}
+
+message ExplanationRequest {
+  string conclusion = 1;
+  string explanation_type = 2;  // "natural_language", "formal", "tree"
+  int32 max_depth = 3;
+}
+
+message ConflictQuery {
+  string belief_type = 1;
+  double confidence_threshold = 2;
+  bool include_resolutions = 3;
+}
+
+// Response messages
+message BeliefQueryResponse {
+  repeated BeliefInfo beliefs = 1;
+  int32 total_count = 2;
+  bool has_more = 3;
+  string next_cursor = 4;
+}
+
+message BeliefResponse {
+  BeliefInfo belief = 1;
+  bool found = 2;
+}
+
+message JustificationResponse {
+  JustificationTree justification = 1;
+  bool found = 2;
+}
+
+message ExplanationResponse {
+  string explanation = 1;
+  repeated ExplanationStep steps = 2;
+  string format = 3;
+}
+
+message ConflictResponse {
+  repeated ConflictInfo conflicts = 1;
+  repeated ResolutionSuggestion resolutions = 2;
+}
+
+// Core data structures
+message BeliefInfo {
+  string belief_id = 1;
+  string belief_type = 2;
+  string content = 3;  // Serialized belief content
+  double confidence = 4;
+  google.protobuf.Timestamp created_at = 5;
+  google.protobuf.Timestamp updated_at = 6;
+  repeated string tags = 7;
+  repeated EvidenceLink evidence = 8;
+  JustificationSummary justification_summary = 9;
+  BeliefStatus status = 10;
+}
+
+message EvidenceLink {
+  string evidence_id = 1;
+  string evidence_type = 2;
+  double support_strength = 3;
+  string relation = 4;  // "supports", "contradicts", "refines"
+}
+
+message JustificationSummary {
+  string primary_rule = 1;
+  int32 premise_count = 2;
+  double certainty = 3;
+  repeated string key_evidence = 4;
+}
+
+message JustificationTree {
+  JustificationNode root = 1;
+  int32 total_nodes = 2;
+  int32 max_depth = 3;
+}
+
+message JustificationNode {
+  string node_id = 1;
+  string content = 2;
+  string node_type = 3;  // "belief", "rule", "evidence", "assumption"
+  double confidence = 4;
+  repeated JustificationNode children = 5;
+  RuleInfo rule_info = 6;
+  map<string, string> metadata = 7;
+}
+
+message RuleInfo {
+  string rule_name = 1;
+  string rule_description = 2;
+  string domain = 3;
+  int32 priority = 4;
+  google.protobuf.Timestamp applied_at = 5;
+  map<string, string> bindings = 6;
+}
+
+message ExplanationStep {
+  int32 step_number = 1;
+  string description = 2;
+  string rule_applied = 3;
+  repeated string premises = 4;
+  string conclusion = 5;
+  double confidence_change = 6;
+}
+
+message ConflictInfo {
+  string conflict_id = 1;
+  repeated string conflicting_beliefs = 2;
+  string conflict_type = 3;  // "contradiction", "inconsistency", "uncertainty"
+  double severity = 4;
+  string description = 5;
+  google.protobuf.Timestamp detected_at = 6;
+}
+
+message ResolutionSuggestion {
+  string suggestion_id = 1;
+  string strategy = 2;  // "prefer_higher_confidence", "seek_more_evidence", "temporal_precedence"
+  string description = 3;
+  double effectiveness_score = 4;
+  repeated string actions_required = 5;
+}
+
+enum BeliefStatus {
+  ACTIVE = 0;
+  SUPERSEDED = 1;
+  RETRACTED = 2;
+  PENDING_VERIFICATION = 3;
+  CONFLICTED = 4;
+}
