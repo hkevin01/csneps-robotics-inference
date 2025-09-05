@@ -77,20 +77,21 @@ public class CsriKgClientBuilder {
         }
 
         public Assertion build() {
-            Provenance.Builder provBuilder = Provenance.newBuilder();
-            if (timestamp != null) {
-                provBuilder.setTimestamp(timestamp);
-            }
-            if (docId != null) {
-                provBuilder.setDocId(docId);
-            }
+            // TODO: Uncomment when protobuf classes are regenerated
+            // Provenance.Builder provBuilder = Provenance.newBuilder();
+            // if (timestamp != null) {
+            //     provBuilder.setTimestamp(timestamp);
+            // }
+            // if (docId != null) {
+            //     provBuilder.setDocId(docId);
+            // }
 
             return Assertion.newBuilder()
                     .setSubject(subject)
                     .setPredicate(predicate)
                     .setObject(object)
                     .setConfidence(confidence)
-                    .setProvenance(provBuilder.build())
+                    // .setProvenance(provBuilder.build())  // TODO: Uncomment when protobuf regenerated
                     .build();
         }
     }
@@ -178,13 +179,18 @@ public class CsriKgClientBuilder {
             return this;
         }
 
-        public SearchRequest build() {
-            return SearchRequest.newBuilder()
-                    .setQueryText(textQuery != null ? textQuery : "")
-                    .setConceptFilter("")  // Default empty filter
-                    .setLimit(100)  // Default limit
-                    .setFuzzyMatch(false)  // Default exact match
-                    .build();
+        // TODO: Uncomment when protobuf classes are regenerated
+        // public SearchRequest build() {
+        //     return SearchRequest.newBuilder()
+        //             .setQueryText(textQuery != null ? textQuery : "")
+        //             .setConceptFilter("")  // Default empty filter
+        //             .setLimit(100)  // Default limit
+        //             .setFuzzyMatch(false)  // Default exact match
+        //             .build();
+        // }
+
+        public Object build() {
+            throw new UnsupportedOperationException("SearchRequest build not available until protobuf classes are regenerated");
         }
     }
 }

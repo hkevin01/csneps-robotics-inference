@@ -8,8 +8,6 @@ import java.nio.file.Path;
 import java.util.Arrays;
 import java.util.List;
 
-import javax.swing.Renderer;
-
 import org.apache.batik.svggen.SVGGraphics2D;
 import org.w3c.dom.DOMImplementation;
 import org.w3c.dom.Document;
@@ -17,6 +15,7 @@ import org.w3c.dom.Document;
 import edu.uci.ics.jung.algorithms.layout.FRLayout;
 import edu.uci.ics.jung.graph.SparseMultigraph;
 import edu.uci.ics.jung.visualization.VisualizationImageServer;
+import edu.uci.ics.jung.visualization.renderers.Renderer;
 
 /**
  * Minimal JUNG SVG renderer. In production, fetch subgraph from CSNePS HTTP endpoint

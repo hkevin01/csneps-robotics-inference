@@ -62,10 +62,10 @@ public class ClientExample {
         // Assert the facts
         AssertResponse response = client.assertFacts(Arrays.asList(fact1, fact2));
 
-        if (response.getOk()) {
-            System.out.println("Successfully asserted " + response.getAssertionsAccepted() + " facts");
+        if (response.getSuccess()) {
+            System.out.println("Successfully asserted " + response.getProcessedCount() + " facts");
         } else {
-            System.err.println("Failed to assert facts: " + response.getMessage());
+            System.err.println("Failed to assert facts: " + response.getErrorsList());
         }
     }
 
@@ -78,16 +78,15 @@ public class ClientExample {
         if (response.getSuccess()) {
             System.out.println("Query returned " + response.getResultsCount() + " results:");
             for (QueryResult result : response.getResultsList()) {
-                System.out.println("  Node ID: " + result.getNodeId());
                 System.out.println("  Bindings: " + result.getBindingsMap());
                 System.out.println("  Confidence: " + result.getConfidence());
-                if (!result.getJustificationSummary().isEmpty()) {
-                    System.out.println("  Justification: " + result.getJustificationSummary());
+                if (result.hasJustification()) {
+                    System.out.println("  Justification: " + result.getJustification());
                 }
                 System.out.println();
             }
         } else {
-            System.err.println("Query failed: " + response.getMessage());
+            System.err.println("Query failed: " + response.getError());
         }
     }
 
@@ -110,18 +109,23 @@ public class ClientExample {
     private static void searchConcepts(CsriKgClient client) {
         System.out.println("\n=== Search Concepts ===");
 
-        // Use simple search method
-        SearchResponse response = client.search("bird", 10);
+        // TODO: Uncomment when search methods are implemented
+        // SearchResponse response = client.search("bird", 10);
+        //
+        // if (response.getSuccess()) {
+        //     System.out.println("Search returned " + response.getResultsCount() + " results:");
+        //     for (QueryResult result : response.getResultsList()) {
+        //         System.out.println("  Result bindings: " + result.getBindingsMap());
+        //         System.out.println("  Confidence: " + result.getConfidence());
+        //         if (result.hasJustification()) {
+        //             System.out.println("  Has justification");
+        //         }
+        //         System.out.println();
+        //     }
+        // } else {
+        //     System.err.println("Search failed: " + response.getMessage());
+        // }
 
-        if (response.getSuccess()) {
-            System.out.println("Search returned " + response.getResultsCount() + " results:");
-            for (QueryResult result : response.getResultsList()) {
-                System.out.println("  Found: " + result.getNodeId());
-                System.out.println("  Confidence: " + result.getConfidence());
-                System.out.println();
-            }
-        } else {
-            System.err.println("Search failed: " + response.getMessage());
-        }
+        System.out.println("Search functionality temporarily disabled - protobuf classes need regeneration");
     }
 }
