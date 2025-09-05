@@ -93,18 +93,18 @@ public class CsriKgClient implements AutoCloseable {
     public WhyResponse why(String conclusion, int maxDepth) {
         try {
             WhyRequest request = WhyRequest.newBuilder()
-                    .setConclusion(conclusion)
+                    .setNodeId(conclusion)
                     .setMaxDepth(maxDepth)
                     .build();
 
             WhyResponse response = graphStub.why(request);
-            logger.debug("Found {} justifications for: {}",
-                        response.getJustificationsCount(), conclusion);
+            logger.debug("Why explanation returned {} justifications",
+                        response.getJustificationTreeCount());
             return response;
 
         } catch (StatusRuntimeException e) {
             logger.error("Failed to get justification: {}", e.getMessage());
-            throw new CsriKgClientException("Justification query failed", e);
+            throw new CsriKgClientException("Why query failed", e);
         }
     }
 
@@ -138,20 +138,18 @@ public class CsriKgClient implements AutoCloseable {
     /**
      * Check service health.
      */
-    public boolean isHealthy() {
+    public boolean checkHealth() {
         try {
-            HealthCheckRequest request = HealthCheckRequest.newBuilder()
-                    .setService("GraphService")
+            HealthRequest request = HealthRequest.newBuilder()
                     .build();
 
-            HealthCheckResponse response = healthStub.check(request);
-            boolean healthy = response.getStatus() == HealthCheckResponse.ServingStatus.SERVING;
-
-            logger.debug("Health check result: {}", healthy ? "HEALTHY" : "UNHEALTHY");
+            HealthResponse response = healthStub.check(request);
+            boolean healthy = response.getHealthy();
+            logger.debug("Health check result: {}", healthy);
             return healthy;
 
         } catch (StatusRuntimeException e) {
-            logger.warn("Health check failed: {}", e.getMessage());
+            logger.error("Health check failed: {}", e.getMessage());
             return false;
         }
     }

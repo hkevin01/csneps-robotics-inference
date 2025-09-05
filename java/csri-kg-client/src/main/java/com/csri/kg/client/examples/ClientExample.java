@@ -2,7 +2,7 @@ package com.csri.kg.client.examples;
 
 import java.util.Arrays;
 
-import com.csri.kg.proto.GraphProto.*;
+import com.csri.kg.proto.*;
 
 import com.csri.kg.client.CsriKgClient;
 import com.csri.kg.client.CsriKgClientBuilder;
@@ -17,7 +17,7 @@ public class ClientExample {
         try (CsriKgClient client = CsriKgClient.createLocal()) {
 
             // Check health
-            if (!client.isHealthy()) {
+            if (!client.checkHealth()) {
                 System.err.println("CSNePS service is not available");
                 return;
             }
@@ -30,13 +30,14 @@ public class ClientExample {
             // Example 2: Query for information
             queryFacts(client);
 
-            // Example 3: Get justifications
-            getJustification(client);
+            // Example 3: Get justification for a fact
+            whyExplanation(client);
 
-            // Example 4: Search knowledge base
-            searchKnowledge(client);
+            // Example 4: Search for related concepts
+            searchConcepts(client);
 
         } catch (Exception e) {
+            System.err.println("Error communicating with CSNePS service: " + e.getMessage());
             e.printStackTrace();
         }
     }
@@ -47,121 +48,80 @@ public class ClientExample {
         // Create assertions using the builder
         Assertion fact1 = CsriKgClientBuilder.assertion()
                 .predicate("isa")
-                .args("tweety", "bird")
+                .subject("tweety")
+                .object("bird")
                 .confidence(1.0)
-                .source("example")
-                .metadata("category", "taxonomy")
                 .build();
 
         Assertion fact2 = CsriKgClientBuilder.assertion()
                 .predicate("can-fly")
-                .args("tweety")
+                .subject("tweety")
                 .confidence(0.9)
-                .source("inference")
-                .metadata("rule", "birds-fly")
                 .build();
 
         // Assert the facts
         AssertResponse response = client.assertFacts(Arrays.asList(fact1, fact2));
 
-        if (response.getSuccess()) {
-            System.out.println("Successfully asserted " + response.getProcessedCount() + " facts");
-            System.out.println("Assertion IDs: " + response.getAssertionIdsList());
+        if (response.getOk()) {
+            System.out.println("Successfully asserted " + response.getAssertionsAccepted() + " facts");
         } else {
-            System.err.println("Failed to assert facts: " + response.getErrorsList());
+            System.err.println("Failed to assert facts: " + response.getMessage());
         }
     }
 
     private static void queryFacts(CsriKgClient client) {
         System.out.println("\n=== Querying Facts ===");
 
-        // Create a query using the builder
-        Query query = CsriKgClientBuilder.query()
-                .pattern("isa(?x, bird)")
-                .variable("x", "entity")
-                .maxResults(10)
-                .minConfidence(0.5)
-                .includeJustification(true)
-                .build();
-
-        // Execute the query
-        QueryResponse response = client.query(query);
+        // Execute a query with a pattern string
+        QueryResponse response = client.query("isa(?x, bird)");
 
         if (response.getSuccess()) {
-            System.out.println("Query returned " + response.getResultsCount() + " results");
-
+            System.out.println("Query returned " + response.getResultsCount() + " results:");
             for (QueryResult result : response.getResultsList()) {
+                System.out.println("  Node ID: " + result.getNodeId());
                 System.out.println("  Bindings: " + result.getBindingsMap());
                 System.out.println("  Confidence: " + result.getConfidence());
-
-                if (result.hasJustification()) {
-                    System.out.println("  Justification: " + result.getJustification().getRule());
+                if (!result.getJustificationSummary().isEmpty()) {
+                    System.out.println("  Justification: " + result.getJustificationSummary());
                 }
-            }
-
-            if (response.hasStats()) {
-                QueryStats stats = response.getStats();
-                System.out.println("  Execution time: " + stats.getExecutionTimeMs() + "ms");
-                System.out.println("  Nodes explored: " + stats.getNodesExplored());
+                System.out.println();
             }
         } else {
-            System.err.println("Query failed: " + response.getError());
+            System.err.println("Query failed: " + response.getMessage());
         }
     }
 
-    private static void getJustification(CsriKgClient client) {
-        System.out.println("\n=== Getting Justification ===");
+    private static void whyExplanation(CsriKgClient client) {
+        System.out.println("\n=== Why Explanation ===");
 
-        // Ask why something is true
+        // Get explanation for why something is true
         WhyResponse response = client.why("can-fly(tweety)", 5);
 
         if (response.getSuccess()) {
-            System.out.println("Found " + response.getJustificationsCount() + " justifications");
-
-            for (Justification just : response.getJustificationsList()) {
-                System.out.println("  Conclusion: " + just.getConclusion());
-                System.out.println("  Rule: " + just.getRule());
-                System.out.println("  Premises: " + just.getPremisesList());
-                System.out.println("  Confidence: " + just.getConfidence());
-
-                if (just.getSubJustificationsCount() > 0) {
-                    System.out.println("  Sub-justifications: " + just.getSubJustificationsCount());
-                }
+            System.out.println("Justification tree count: " + response.getJustificationTreeCount());
+            if (!response.getJustificationJson().isEmpty()) {
+                System.out.println("Justification JSON: " + response.getJustificationJson());
             }
         } else {
-            System.err.println("Justification failed: " + response.getError());
+            System.err.println("Why explanation failed: " + response.getMessage());
         }
     }
 
-    private static void searchKnowledge(CsriKgClient client) {
-        System.out.println("\n=== Searching Knowledge Base ===");
+    private static void searchConcepts(CsriKgClient client) {
+        System.out.println("\n=== Search Concepts ===");
 
-        // Create search criteria using the builder
-        SearchCriteria criteria = CsriKgClientBuilder.search()
-                .textQuery("bird")
-                .predicate("isa")
-                .entity("tweety")
-                .minConfidence(0.7)
-                .source("example")
-                .build();
-
-        // Execute the search
-        SearchResponse response = client.search(criteria, 20, 0);
+        // Use simple search method
+        SearchResponse response = client.search("bird", 10);
 
         if (response.getSuccess()) {
-            System.out.println("Search returned " + response.getResultsCount() +
-                             " of " + response.getTotalCount() + " total results");
-
-            for (SearchResult result : response.getResultsList()) {
-                Assertion assertion = result.getAssertion();
-                System.out.println("  " + assertion.getPredicate() + "(" +
-                                 String.join(", ", assertion.getArgsList()) + ")");
-                System.out.println("    Confidence: " + assertion.getConfidence());
-                System.out.println("    Relevance: " + result.getRelevanceScore());
-                System.out.println("    Matched terms: " + result.getMatchedTermsList());
+            System.out.println("Search returned " + response.getResultsCount() + " results:");
+            for (QueryResult result : response.getResultsList()) {
+                System.out.println("  Found: " + result.getNodeId());
+                System.out.println("  Confidence: " + result.getConfidence());
+                System.out.println();
             }
         } else {
-            System.err.println("Search failed: " + response.getError());
+            System.err.println("Search failed: " + response.getMessage());
         }
     }
 }
