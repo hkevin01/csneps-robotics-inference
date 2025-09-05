@@ -16,32 +16,7 @@
 ;; Global state for v0.1.0
 (def ^:private server-state (atom {:kb nil :server nil :running false}))
 
-;; === Knowledge Base Initialization ===
-
-(defn init-kb
-  "Initialize CSNePS knowledge base with minimal rules for v0.1.0"
-  []
-  (log/info "Initializing CSNePS knowledge base...")
-  (try
-    ;; For v0.1.0, we'll use a simplified in-memory knowledge store
-    ;; until CSNePS is properly integrated
-    (let [kb {:rules {}
-              :facts #{}
-              :types #{:Landmark :GNCEvent :MedicalFinding :Observation :Confidence}}]
-
-      (swap! server-state assoc :kb kb)
-
-      ;; Load canonical rules for v0.1.0
-      (load-slam-rules)
-      (load-gnc-rules)
-      (load-medical-rules)
-
-      (log/info "CSNePS knowledge base initialized successfully")
-      true)
-
-    (catch Exception e
-      (log/error e "Failed to initialize knowledge base")
-      false)))
+;; === Rule Definition Functions ===
 
 (defn load-slam-rules
   "Load SLAM domain rules: LoopClosure → HighConfidenceLandmark"
@@ -148,6 +123,70 @@
     (swap! server-state update-in [:kb :rules] merge rules))
 
   (log/info "Medical rules loaded"))
+
+;; === Inference Engine ===
+
+(defn rule-matches?
+  "Check if a rule matches current facts (simplified for v0.1.0)"
+  [rule-def facts observation-id]
+  ;; This is a very simplified rule matcher for demonstration
+  ;; Real CSNePS would have sophisticated unification and matching
+  (try
+    (let [conclusion (:conclusion rule-def)]
+      ;; For now, just check if the observation type is relevant
+      (some #(= (first %) (first conclusion)) facts))
+    (catch Exception e
+      false)))
+
+(defn run-inference
+  "Run simplified inference and return triggered rules"
+  [observation-id]
+  (try
+    (let [kb (:kb @server-state)
+          facts (:facts kb)
+          rules (:rules kb)]
+
+      ;; For v0.1.0, implement basic rule matching
+      ;; This is a placeholder - real CSNePS would handle this
+      (log/info "Running inference for observation:" observation-id)
+
+      ;; Return rule names that could have been triggered
+      (filter some?
+              (for [[rule-name rule-def] rules]
+                (when (rule-matches? rule-def facts observation-id)
+                  (name rule-name)))))
+
+    (catch Exception e
+      (log/warn e "Inference failed")
+      [])))
+
+;; === Knowledge Base Initialization ===
+
+(defn init-kb
+  "Initialize the CSNePS knowledge base for v0.1.0"
+  []
+  (log/info "Initializing CSNePS knowledge base...")
+
+  (try
+    ;; Initialize simplified knowledge store for v0.1.0
+    (let [kb {:facts #{}
+              :rules {}
+              ;; Basic types for domain entities
+              :types #{:Landmark :GNCEvent :MedicalFinding :Observation :Confidence}}]
+
+      (swap! server-state assoc :kb kb)
+
+      ;; Load canonical rules for v0.1.0
+      (load-slam-rules)
+      (load-gnc-rules)
+      (load-medical-rules)
+
+      (log/info "CSNePS knowledge base initialized successfully")
+      true)
+
+    (catch Exception e
+      (log/error e "Failed to initialize knowledge base")
+      false)))
 
 ;; === Observation Processing ===
 
@@ -286,40 +325,6 @@
        :message (str "Error: " (.getMessage e))
        :observation_id nil
        :triggered_rules []})))
-
-(defn run-inference
-  "Run simplified inference and return triggered rules"
-  [observation-id]
-  (try
-    (let [kb (:kb @server-state)
-          facts (:facts kb)
-          rules (:rules kb)]
-
-      ;; For v0.1.0, implement basic rule matching
-      ;; This is a placeholder - real CSNePS would handle this
-      (log/info "Running inference for observation:" observation-id)
-
-      ;; Return rule names that could have been triggered
-      (filter some?
-              (for [[rule-name rule-def] rules]
-                (when (rule-matches? rule-def facts observation-id)
-                  (name rule-name)))))
-
-    (catch Exception e
-      (log/warn e "Inference failed")
-      [])))
-
-(defn rule-matches?
-  "Check if a rule matches current facts (simplified for v0.1.0)"
-  [rule-def facts observation-id]
-  ;; This is a very simplified rule matcher for demonstration
-  ;; Real CSNePS would have sophisticated unification and matching
-  (try
-    (let [conclusion (:conclusion rule-def)]
-      ;; For now, just check if the observation type is relevant
-      (some #(= (first %) (first conclusion)) facts))
-    (catch Exception e
-      false)))
 
 ;; === Query Processing ===
 
@@ -541,4 +546,4 @@
 
       (do
         (log/error "Failed to start system")
-        (System/exit 1)))))
+        (System/exit 1))))))

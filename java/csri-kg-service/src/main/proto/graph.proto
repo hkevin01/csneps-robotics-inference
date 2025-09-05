@@ -1,0 +1,146 @@
+syntax = "proto3";
+package csri.graph;
+
+option java_multiple_files = true;
+option java_package = "com.csri.kg.proto";
+option java_outer_classname = "GraphProtos";
+
+// Provenance information for traceability
+message Provenance {
+  string doc_id = 1;
+  int32 start_offset = 2;
+  int32 end_offset = 3;
+  string extractor = 4;
+  string model_version = 5;
+  string timestamp = 6;
+}
+
+// Core assertion structure
+message Assertion {
+  string subject = 1;
+  string predicate = 2;
+  string object = 3;
+  double confidence = 4;
+  Provenance provenance = 5;
+  string context = 6;  // Additional context/metadata
+}
+
+// Entity with type information
+message Entity {
+  string id = 1;
+  string type = 2;
+  map<string, string> properties = 3;
+}
+
+// Relation definition
+message Relation {
+  string id = 1;
+  string domain = 2;
+  string range = 3;
+  bool functional = 4;
+  bool inverse_functional = 5;
+}
+
+// Assertion operations
+message AssertRequest {
+  repeated Assertion assertions = 1;
+  bool validate_shacl = 2;  // Run SHACL validation
+}
+
+message AssertResponse {
+  bool ok = 1;
+  string message = 2;
+  repeated string validation_errors = 3;
+  int32 assertions_accepted = 4;
+}
+
+// Query operations
+message QueryRequest {
+  string pattern = 1; // e.g., "HighConfidenceLandmark(?l)"
+  int32 limit = 2;
+  bool include_justification = 3;
+}
+
+message QueryResult {
+  string node_id = 1;
+  map<string, string> bindings = 2;
+  double confidence = 3;
+  string justification_summary = 4;
+}
+
+message QueryResponse {
+  repeated QueryResult results = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// Justification/explanation
+message WhyRequest {
+  string node_id = 1;
+  int32 max_depth = 2;
+}
+
+message JustificationNode {
+  string node_id = 1;
+  string rule_name = 2;
+  string conclusion = 3;
+  repeated string premises = 4;
+  double confidence = 5;
+  Provenance provenance = 6;
+}
+
+message WhyResponse {
+  string justification_json = 1;
+  repeated JustificationNode justification_tree = 2;
+  bool success = 3;
+  string message = 4;
+}
+
+// Search operations
+message SearchRequest {
+  string query_text = 1;
+  string concept_filter = 2;  // Filter by concept type
+  int32 limit = 3;
+  bool fuzzy_match = 4;
+}
+
+message SearchResponse {
+  repeated QueryResult results = 1;
+  bool success = 2;
+  string message = 3;
+}
+
+// Batch operations
+message BatchAssertRequest {
+  repeated AssertRequest batches = 1;
+  bool fail_fast = 2;
+}
+
+message BatchAssertResponse {
+  repeated AssertResponse responses = 1;
+  int32 total_accepted = 2;
+  int32 total_rejected = 3;
+}
+
+// Main graph service
+service GraphService {
+  rpc Assert(AssertRequest) returns (AssertResponse);
+  rpc BatchAssert(BatchAssertRequest) returns (BatchAssertResponse);
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Why(WhyRequest) returns (WhyResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+// Health and status
+message HealthRequest {
+}
+
+message HealthResponse {
+  bool healthy = 1;
+  string version = 2;
+  map<string, string> status = 3;
+}
+
+service HealthService {
+  rpc Check(HealthRequest) returns (HealthResponse);
+}

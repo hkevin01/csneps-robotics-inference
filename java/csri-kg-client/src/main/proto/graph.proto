@@ -1,0 +1,159 @@
+syntax = "proto3";
+
+package csri.graph;
+
+option java_package = "com.csri.kg.proto";
+option java_outer_classname = "GraphProto";
+
+// Graph Service for knowledge operations
+service GraphService {
+  rpc Assert(AssertRequest) returns (AssertResponse);
+  rpc Query(QueryRequest) returns (QueryResponse);
+  rpc Why(WhyRequest) returns (WhyResponse);
+  rpc Search(SearchRequest) returns (SearchResponse);
+}
+
+// Health checking service
+service HealthService {
+  rpc Check(HealthCheckRequest) returns (HealthCheckResponse);
+}
+
+// Assertion message
+message Assertion {
+  string predicate = 1;
+  repeated string args = 2;
+  double confidence = 3;
+  Provenance provenance = 4;
+  map<string, string> metadata = 5;
+}
+
+// Provenance information
+message Provenance {
+  string source = 1;
+  int64 timestamp = 2;
+  string method = 3;
+  map<string, string> context = 4;
+}
+
+// Query message
+message Query {
+  string pattern = 1;
+  repeated Variable variables = 2;
+  QueryOptions options = 3;
+}
+
+// Variable binding
+message Variable {
+  string name = 1;
+  string type = 2;
+  repeated string constraints = 3;
+}
+
+// Query options
+message QueryOptions {
+  int32 max_results = 1;
+  double min_confidence = 2;
+  bool include_justification = 3;
+  repeated string include_sources = 4;
+}
+
+// Justification information
+message Justification {
+  string conclusion = 1;
+  repeated string premises = 2;
+  string rule = 3;
+  double confidence = 4;
+  repeated Justification sub_justifications = 5;
+}
+
+// Search criteria
+message SearchCriteria {
+  string text_query = 1;
+  repeated string predicates = 2;
+  repeated string entities = 3;
+  double min_confidence = 4;
+  repeated string sources = 5;
+}
+
+// Request messages
+message AssertRequest {
+  repeated Assertion assertions = 1;
+  bool validate = 2;
+}
+
+message QueryRequest {
+  Query query = 1;
+}
+
+message WhyRequest {
+  string conclusion = 1;
+  int32 max_depth = 2;
+}
+
+message SearchRequest {
+  SearchCriteria criteria = 1;
+  int32 limit = 2;
+  int32 offset = 3;
+}
+
+message HealthCheckRequest {
+  string service = 1;
+}
+
+// Response messages
+message AssertResponse {
+  bool success = 1;
+  repeated string assertion_ids = 2;
+  repeated string errors = 3;
+  int32 processed_count = 4;
+}
+
+message QueryResponse {
+  bool success = 1;
+  repeated QueryResult results = 2;
+  string error = 3;
+  QueryStats stats = 4;
+}
+
+message WhyResponse {
+  bool success = 1;
+  repeated Justification justifications = 2;
+  string error = 3;
+}
+
+message SearchResponse {
+  bool success = 1;
+  repeated SearchResult results = 2;
+  int32 total_count = 3;
+  string error = 4;
+}
+
+message HealthCheckResponse {
+  enum ServingStatus {
+    UNKNOWN = 0;
+    SERVING = 1;
+    NOT_SERVING = 2;
+    SERVICE_UNKNOWN = 3;
+  }
+  ServingStatus status = 1;
+}
+
+// Result types
+message QueryResult {
+  map<string, string> bindings = 1;
+  double confidence = 2;
+  Justification justification = 3;
+}
+
+message SearchResult {
+  Assertion assertion = 1;
+  double relevance_score = 2;
+  repeated string matched_terms = 3;
+}
+
+// Statistics
+message QueryStats {
+  int64 execution_time_ms = 1;
+  int32 nodes_explored = 2;
+  int32 rules_fired = 3;
+}
