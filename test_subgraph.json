@@ -1,0 +1,101 @@
+{
+  "nodes": [
+    {
+      "id": "Animal",
+      "label": "Animal",
+      "kind": "Frame",
+      "asserted": true,
+      "confidence": 1.0,
+      "degree": 4
+    },
+    {
+      "id": "Dog",
+      "label": "Dog",
+      "kind": "Individual",
+      "asserted": true,
+      "confidence": 0.95,
+      "degree": 3
+    },
+    {
+      "id": "Mammal",
+      "label": "Mammal",
+      "kind": "Frame",
+      "asserted": false,
+      "confidence": 0.9,
+      "degree": 2
+    },
+    {
+      "id": "Pet",
+      "label": "Pet",
+      "kind": "Role",
+      "asserted": true,
+      "confidence": 0.8,
+      "degree": 2
+    },
+    {
+      "id": "Fido",
+      "label": "Fido",
+      "kind": "Individual",
+      "asserted": true,
+      "confidence": 1.0,
+      "degree": 1
+    }
+  ],
+  "edges": [
+    {
+      "id": "e1",
+      "src": "Dog",
+      "dst": "Animal",
+      "label": "isa",
+      "kind": "FrameEdge",
+      "asserted": true,
+      "collapsed": false
+    },
+    {
+      "id": "e2",
+      "src": "Dog",
+      "dst": "Mammal",
+      "label": "isa",
+      "kind": "FrameEdge",
+      "asserted": false,
+      "collapsed": false
+    },
+    {
+      "id": "e3",
+      "src": "Mammal",
+      "dst": "Animal",
+      "label": "isa",
+      "kind": "FrameEdge",
+      "asserted": true,
+      "collapsed": true
+    },
+    {
+      "id": "e4",
+      "src": "Fido",
+      "dst": "Dog",
+      "label": "isa",
+      "kind": "FrameEdge",
+      "asserted": true,
+      "collapsed": false
+    },
+    {
+      "id": "e5",
+      "src": "Fido",
+      "dst": "Pet",
+      "label": "plays",
+      "kind": "RoleEdge",
+      "asserted": true,
+      "collapsed": false
+    }
+  ],
+  "meta": {
+    "focus": "Dog",
+    "radius": 2,
+    "query_time_ms": 45,
+    "node_count": 5,
+    "edge_count": 5,
+    "collapsed_edges": 1,
+    "layout": "BFS",
+    "timestamp": "2024-01-15T10:30:00Z"
+  }
+}

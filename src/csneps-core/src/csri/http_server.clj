@@ -7,68 +7,153 @@
     [ring.util.response :as resp]
     [cheshire.core :as json]
     [clojure.string :as str]
+    [clojure.set]
     [clojure.java.io :as io]
-    [csneps.core :as cs]
-    [csneps.snip :as snip]
-    [csneps.util :as util]))
+    [csneps.core :as cs]))
 
-;; -----------------------------------------------------------------------------
-;; Minimal CSNePS bootstrap
-;; -----------------------------------------------------------------------------
-
-(defonce system (atom {:server nil
-                       :running? false}))
+(def system (atom {}))
 
 (defn load-edn-file! [f]
-  (when (.exists (io/file f))
-    (let [data (read-string (slurp f))]
-      data)))
+  (when (.exists (java.io.File. f))
+    (read-string (slurp f))))
 
 (defn load-rules! [rules-edn]
-  ;; Expect a map {:frames #{...} :roles #{...} :rules [...]}
-  ;; The actual CSNePS DSL for defining frames/roles may vary; this is a stub.
-  (when-let [frames (:frames rules-edn)]
-    (doseq [frm frames]
-      ;; Example: frm could be {:frame :Robot :type :Entity?}
-      ;; Here we simply register the symbol for later use.
-      (util/dbg (str "Register frame: " frm))))
-  (when-let [roles (:roles rules-edn)]
-    (doseq [r roles]
-      (util/dbg (str "Register role: " r))))
-  (when-let [rules (:rules rules-edn)]
-    (doseq [r rules]
-      ;; In a real system, translate EDN rule to CSNePS rule constructs.
-      (util/dbg (str "Register rule: " r)))))
+  ;; Load rules from EDN structure into CSNePS
+  (doseq [rule (:rules rules-edn)]
+    (try
+      (let [term (read-string (:pattern rule))]
+        (cs/assert! term))
+      (catch Exception e
+        (println "Failed to load rule:" (.getMessage e))))))
 
 (defn init! []
-  (when-not (:running? @system)
-    ;; Load seed KB and rules if present
-    (when-let [kb (load-edn-file! "resources/sample-kb.edn")]
-      (doseq [stmt (if (sequential? kb) kb [kb])]
-        (try
-          (cs/assert! stmt)
-          (catch Exception e
-            (util/dbg (str "KB load error: " stmt " -> " (.getMessage e)))))))
-    (when-let [rules-edn (load-edn-file! "resources/generated/csneps-rules.edn")]
-      (load-rules! rules-edn))
-    (snip/run) ;; start inference network
-    (swap! system assoc :running? true)))
-
-;; -----------------------------------------------------------------------------
-;; Helpers: simple assertion & query adapters
-;; -----------------------------------------------------------------------------
+  (try
+    (cs/clearkb true)
+    (println "CSNePS knowledge base initialized")
+    ;; Load any startup rules
+    (when-let [rules (load-edn-file! "resources/startup-rules.edn")]
+      (load-rules! rules)
+      (println "Startup rules loaded"))
+    (catch Exception e
+      (println "Warning: CSNePS initialization issue:" (.getMessage e)))))
 
 (defn make-assertion-term
-  "Transforms an assertion DTO into a CSNePS logical term form.
-   Very simple default: (predicate subject object) plus :confidence meta/provenance support."
-  [{:keys [subject predicate object confidence provenance]}]
-  (let [pred (symbol predicate)
-        subj (symbol subject)
-        obj  (symbol object)]
-    ;; Return a tuple with metadata for downstream support tracking.
-    {:term (list pred subj obj)
-     :confidence (or confidence 1.0)
+  "Parse assertion DTO and create CSNePS term with metadata"
+  [dto]
+  (let [assertion (or (:assertion dto) (:term dto))
+        confidence (or (:confidence dto) 1.0)
+        provenance (or (:provenance dto) {})]
+    {:term (read-string assertion)
+     :confidence confidence
      :provenance provenance}))
+
+(defn- get-node-kind [node]
+      (let [s (str node)]
+        (cond
+          (re-find #"[Ff]rame" s) "Frame"
+          (re-find #"[Ii]ndividual" s) "Individual"
+          (re-find #"[Pp]rop" s) "Proposition"
+          (re-find #"[Rr]ole" s) "Role"
+          :else "Frame")))
+
+    (defn- get-node-attrs [node]
+      {:id (str node)
+       :label (str node)
+       :kind (get-node-kind node)
+       :asserted (boolean (try (cs/asserted? node) (catch Exception _ false)))
+       :confidence (or (try (cs/confidence node) (catch Exception _ nil)) 1.0)
+       :degree (try (count (cs/edges node)) (catch Exception _ 0))})
+
+    (defn- get-edge-attrs [edge collapse?]
+      (let [{:keys [src dst label kind asserted collapsed]} edge]
+        {:id (str "edge-" (hash [src dst label]))
+         :src (str src)
+         :dst (str dst)
+         :label (str label)
+         :kind (or kind (if collapse? "Collapsed" "FrameEdge"))
+         :asserted (boolean asserted)
+         :collapsed (boolean collapsed)}))
+
+    (defn- bfs-subgraph
+      [focus-node radius edge-types max-nodes collapse?]
+      ;; BFS traversal with edge filtering and node/edge limits
+      (let [queue (java.util.LinkedList.)
+            visited (atom #{})
+            edges (atom [])
+            add-node (fn [n] (when-not (@visited n) (.add queue n)))
+            add-edge (fn [e] (swap! edges conj e))
+            _ (add-node focus-node)
+            node-depth (atom {focus-node 0})]
+        (while (and (not (.isEmpty queue)) (< (count @visited) max-nodes))
+          (let [node (.remove queue)
+                depth (get @node-depth node 0)]
+            (swap! visited conj node)
+            (when (< depth radius)
+              (doseq [edge (try (cs/edges node) (catch Exception _ []))]
+                (let [other (if (= node (:src edge)) (:dst edge) (:src edge))
+                      edge-type (str (:label edge))]
+                  (when (and (or (empty? edge-types) (some #(= edge-type %) edge-types))
+                             (not (@visited other)))
+                    (add-node other)
+                    (swap! node-depth assoc other (inc depth)))
+                  (add-edge (assoc edge :src node :dst other :collapsed false))))))
+        {:nodes @visited :edges @edges :truncated (>= (count @visited) max-nodes)}))
+
+    (defn- collapse-frames [nodes edges]
+      ;; Collapse two-slot frames not used as fillers elsewhere
+      (let [frame-nodes (filter #(= "Frame" (get-node-kind %)) nodes)
+            frame-edges (filter #(= "FrameEdge" (:kind %)) edges)
+            used-as-filler (set (map :dst frame-edges))
+            collapsible (filter (fn [f]
+                                  (let [slots (try (cs/slots f) (catch Exception _ []))]
+                                    (and (= 2 (count slots))
+                                         (not (used-as-filler f)))))
+                                frame-nodes)
+            collapsed-edges (mapcat (fn [f]
+                                       (let [slots (try (cs/slots f) (catch Exception _ []))]
+                                         (when (= 2 (count slots))
+                                           (let [[s1 s2] slots]
+                                             [{:src s1 :dst s2 :label (str f) :kind "Collapsed" :asserted (cs/asserted? f) :collapsed true}]))))
+                                     collapsible)
+            keep-nodes (set/difference (set nodes) (set collapsible))
+            keep-edges (remove #(some (fn [f] (= (:src %) f)) collapsible) edges)]
+        {:nodes keep-nodes :edges (concat keep-edges collapsed-edges)}))
+
+    (defn subgraph-json
+      "Extract subgraph around focus node with specified radius, edge types, collapse, and maxNodes.
+       Output: {nodes:[...], edges:[...], meta:{...}}"
+      [{:keys [focus radius collapse edge-types max-nodes]
+        :or {radius 2 collapse true edge-types [] max-nodes 500}}]
+      (try
+        (let [focus-node (if (string? focus)
+                           (first (filter #(= (str %) focus) (cs/listnodes)))
+                           focus)
+              radius (or radius 2)
+              collapse? (if (nil? collapse) true (boolean (if (string? collapse) (Boolean/parseBoolean collapse) collapse)))
+              edge-types (or edge-types [])
+              max-nodes (or max-nodes 500)
+              {:keys [nodes edges truncated]} (if focus-node
+                                                (bfs-subgraph focus-node radius edge-types max-nodes collapse?)
+                                                {:nodes #{} :edges [] :truncated false})
+              ;; Collapsing logic
+              {:keys [nodes edges]} (if collapse?
+                                      (collapse-frames nodes edges)
+                                      {:nodes nodes :edges edges})
+              nodes-json (mapv get-node-attrs nodes)
+              edges-json (mapv #(get-edge-attrs % collapse?) edges)
+              meta {:focus (str focus)
+                    :radius radius
+                    :collapsed collapse?
+                    :truncated truncated
+                    :count {:nodes (count nodes-json)
+                            :edges (count edges-json)}}]
+          {:nodes nodes-json
+           :edges edges-json
+           :meta meta})
+        (catch Exception e
+          {:error (.getMessage e)
+           :focus (str focus)
+           :radius radius})))
 
 (defn assert-one! [dto]
   (let [{:keys [term confidence provenance]} (make-assertion-term dto)]
@@ -259,83 +344,7 @@
                    :http-server "active"
                    :reasoning "active"}}))
 
-(defn subgraph-json
-  "Extract subgraph around focus node with specified radius and edge types.
-   Returns JSON structure: {nodes:[{id,label,type,asserted,confidence}], edges:[{id,src,dst,label,collapsed}]}"
-  [{:keys [focus radius edge-types] :or {radius 2 edge-types []}}]
-  (try
-    (let [focus-node (if (string? focus)
-                       ;; Find node by string representation
-                       (first (filter #(= (str %) focus) (cs/listnodes)))
-                       focus)
-          all-nodes (cs/listnodes)
-
-          ;; Build subgraph by traversing from focus
-          subgraph-nodes (if focus-node
-                          ;; Start with focus and expand by radius
-                          (loop [current-nodes #{focus-node}
-                                 visited #{}
-                                 remaining-radius radius]
-                            (if (or (<= remaining-radius 0) (empty? current-nodes))
-                              visited
-                              (let [new-visited (clojure.set/union visited current-nodes)
-                                    ;; Find connected nodes (simplified - in real CSNePS, use proper graph traversal)
-                                    connected (set (filter #(or (some (fn [n] (str/includes? (str %) (str n))) current-nodes)
-                                                               (some (fn [n] (str/includes? (str n) (str %))) current-nodes))
-                                                         all-nodes))
-                                    next-nodes (clojure.set/difference connected new-visited)]
-                                (recur next-nodes new-visited (dec remaining-radius)))))
-                          ;; No focus - return limited set of nodes
-                          (set (take 20 all-nodes)))
-
-          ;; Convert nodes to JSON structure
-          nodes (mapv (fn [node]
-                       {:id (str node)
-                        :label (str node)
-                        :type (cond
-                               (re-find #"[Rr]ule|[Ii]mpl" (str node)) "rule"
-                               (re-find #"[Cc]ontext|[Ff]rame" (str node)) "frame"
-                               :else "concept")
-                        :asserted (boolean (cs/asserted? node))
-                        :confidence (or (cs/confidence node) 1.0)})
-                      subgraph-nodes)
-
-          ;; Generate edges between connected nodes (simplified)
-          edges (vec (for [n1 subgraph-nodes
-                          n2 subgraph-nodes
-                          :when (and (not= n1 n2)
-                                   (or (str/includes? (str n1) (str n2))
-                                       (str/includes? (str n2) (str n1))))]
-                      {:id (str "edge-" (hash [n1 n2]))
-                       :src (str n1)
-                       :dst (str n2)
-                       :label "relates"
-                       :collapsed false}))]
-
-      {:nodes nodes
-       :edges edges
-       :focus (str focus)
-       :radius radius
-       :node-count (count nodes)
-       :edge-count (count edges)})
-
-    (catch Exception e
-      {:error (.getMessage e)
-       :focus (str focus)
-       :radius radius})))
-
-(defn handle-subgraph [req]
-  "Handle subgraph extraction requests"
-  (let [focus (get-in req [:params "focus"])
-        radius (some-> (get-in req [:params "radius"]) (Integer/parseInt))
-        edge-types (some-> (get-in req [:params "edgeTypes"])
-                          (str/split #",")
-                          vec)]
-    (if (str/blank? focus)
-      (bad "Missing 'focus' query param")
-      (ok (subgraph-json {:focus focus
-                         :radius (or radius 2)
-                         :edge-types (or edge-types [])})))))
+                   :reasoning "active"}}))
 
 (defn handle-rules-load [req]
   "Load EDN rules from request body into CSNePS"
